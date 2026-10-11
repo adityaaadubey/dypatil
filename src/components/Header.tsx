@@ -10,7 +10,9 @@ import {
   BarChart3, 
   BookOpen, 
   Compass, 
-  ShieldCheck
+  ShieldCheck,
+  ShoppingBag,
+  Coins
 } from 'lucide-react';
 import type { Model } from '../types';
 import type { DataFreshnessInfo } from '../types/arena';
@@ -25,6 +27,8 @@ interface HeaderProps {
   onOpenJudgePanel: () => void;
   onOpenAuditLog: () => void;
   auditCount: number;
+  onOpenCart: () => void;
+  cartCount: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -36,13 +40,16 @@ export const Header: React.FC<HeaderProps> = ({
   freshness,
   onOpenJudgePanel,
   onOpenAuditLog,
-  auditCount
+  auditCount,
+  onOpenCart,
+  cartCount
 }) => {
   const downCount = models.filter((m) => m.endpointStatus === 'down').length;
   const degradedCount = models.filter((m) => m.endpointStatus === 'degraded').length;
 
   const navItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'pricing', label: 'Pricing & Packages', icon: Coins },
     { id: 'leaderboard', label: 'Leaderboards', icon: Trophy },
     { id: 'analytics', label: 'Analytics & Charts', icon: BarChart3 },
     { id: 'rulebook', label: 'Model Rulebook', icon: BookOpen },
@@ -164,6 +171,33 @@ export const Header: React.FC<HeaderProps> = ({
                 fontWeight: 600
               }}>
                 {auditCount}
+              </span>
+            )}
+          </button>
+
+          {/* Cart Trigger */}
+          <button
+            onClick={onOpenCart}
+            className="btn-secondary"
+            style={{ 
+              padding: '6px 12px', 
+              fontSize: '12px',
+              borderColor: cartCount > 0 ? 'var(--accent-purple)' : 'var(--border-subtle)'
+            }}
+            title="Open package shopping cart"
+          >
+            <ShoppingBag size={13} color="var(--accent-purple)" />
+            <span>Cart</span>
+            {cartCount > 0 && (
+              <span style={{
+                backgroundColor: 'var(--accent-purple)',
+                color: '#FFFFFF',
+                padding: '1px 6px',
+                borderRadius: '10px',
+                fontSize: '10px',
+                fontWeight: 700
+              }}>
+                {cartCount}
               </span>
             )}
           </button>

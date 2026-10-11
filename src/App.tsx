@@ -12,9 +12,21 @@ import { DecisionTransparency } from './components/DecisionTransparency';
 import { NoValidModelCard } from './components/NoValidModelCard';
 import { JudgeSimulatorModal } from './components/JudgeSimulatorModal';
 import { AuditLogModal } from './components/AuditLogModal';
+import { PricingPage } from './components/PricingPage';
+import { PackageConfiguratorModal } from './components/PackageConfiguratorModal';
+import { CartDrawer } from './components/CartDrawer';
+import { QrCheckoutModal } from './components/QrCheckoutModal';
 import { INITIAL_MODELS, SAMPLE_PROMPTS } from './data/models';
 import { INITIAL_ARENA_MODELS, calculateDataFreshness } from './services/dataService';
 import { routeRequest } from './services/routerEngine';
+import { 
+  loadCart, 
+  saveCart, 
+  recalculateCart, 
+  createPendingOrder, 
+  getTrialAllowance 
+} from './services/billingService';
+import { PRICING_PACKAGES } from './config/pricingPackages';
 import type { 
   Model, 
   Constraints, 
@@ -24,6 +36,13 @@ import type {
   AuditLogEntry 
 } from './types';
 import type { ArenaModel, DataFreshnessInfo } from './types/arena';
+import type { 
+  PackageTierConfig, 
+  CartItem, 
+  CartState, 
+  PendingOrder, 
+  TrialAllowance 
+} from './types/billing';
 import { Terminal, CheckCircle2 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -58,6 +77,16 @@ export const App: React.FC = () => {
   const [preference, setPreference] = useState<RoutingPreference>(defaultSample.preference);
   const [result, setResult] = useState<RecommendationResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // --- Commercial Packages, Cart & Trial Billing State ---
+  const [cart, setCart] = useState<CartState>(() => loadCart());
+  const [trialAllowance, setTrialAllowance] = useState<TrialAllowance>(() => getTrialAllowance());
+  const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [isConfiguratorOpen, setIsConfiguratorOpen] = useState<boolean>(false);
+  const [configuratorTier, setConfiguratorTier] = useState<PackageTierConfig | null>(null);
+  const [itemToEdit, setItemToEdit] = useState<CartItem | null>(null);
+  const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
+  const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
 
   // Modals state
   const [isJudgePanelOpen, setIsJudgePanelOpen] = useState<boolean>(false);
@@ -184,6 +213,54 @@ export const App: React.FC = () => {
     setTimeout(() => setSyncNotice(null), 4000);
   };
 
+  // --- Package Configurator & Cart Handlers ---
+  const handleConfigurePackage = (tier: PackageTierConfig) => {
+    setConfiguratorTier(tier);
+    setItemToEdit(null);
+    setIsConfiguratorOpen(true);
+  };
+
+  const handleEditCartItem = (item: CartItem) => {
+    const tier = PRICING_PACKAGES.find((p) => p.id === item.packageTierId);
+    if (tier) {
+      setConfiguratorTier(tier);
+      setItemToEdit(item);
+      setIsConfiguratorOpen(true);
+    }
+  };
+
+  const handleAddToCart = (item: CartItem) => {
+    let updatedItems: CartItem[];
+    if (itemToEdit) {
+      updatedItems = cart.items.map((i) => (i.cartItemId === item.cartItemId ? item : i));
+    } else {
+      updatedItems = [...cart.items, item];
+    }
+    const newCart = recalculateCart(updatedItems);
+    setCart(newCart);
+    saveCart(newCart);
+    setIsCartOpen(true);
+  };
+
+  const handleRemoveCartItem = (cartItemId: string) => {
+    const filtered = cart.items.filter((i) => i.cartItemId !== cartItemId);
+    const newCart = recalculateCart(filtered);
+    setCart(newCart);
+    saveCart(newCart);
+  };
+
+  const handleProceedToCheckout = () => {
+    try {
+      const order = createPendingOrder(cart);
+      setPendingOrder(order);
+      setCart({ items: [], totalPriceINR: 0, totalTokens: 0, totalModelsSelected: 0 });
+      setIsCartOpen(false);
+      setIsQrModalOpen(true);
+    } catch (err: any) {
+      alert(err.message || 'Failed to initialize pending checkout.');
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Navigation Header */}
@@ -197,6 +274,8 @@ export const App: React.FC = () => {
         onOpenJudgePanel={() => setIsJudgePanelOpen(true)}
         onOpenAuditLog={() => setIsAuditLogOpen(true)}
         auditCount={auditLogs.length}
+        onOpenCart={() => setIsCartOpen(true)}
+        cartCount={cart.items.length}
       />
 
       {/* Sync Notice Alert */}
@@ -229,6 +308,16 @@ export const App: React.FC = () => {
               onSelectCategory={(_cat) => { setActiveTab('leaderboard'); }}
               onViewModelProfile={(m) => { setSelectedRulebookModel(m); setActiveTab('rulebook'); }}
               onNavigateToTab={setActiveTab}
+            />
+          )}
+
+          {/* TAB: Pricing & Token Packages */}
+          {activeTab === 'pricing' && (
+            <PricingPage
+              onConfigurePackage={handleConfigurePackage}
+              trialAllowance={trialAllowance}
+              onOpenCart={() => setIsCartOpen(true)}
+              cartItemCount={cart.items.length}
             />
           )}
 
@@ -301,6 +390,8 @@ export const App: React.FC = () => {
                     <RecommendationCard
                       result={result}
                       onSimulateOutage={(m) => handleTriggerFailoverTest(m.id)}
+                      trialAllowance={trialAllowance}
+                      onTrialAllowanceUpdated={setTrialAllowance}
                     />
                   ) : (
                     <NoValidModelCard
@@ -388,6 +479,40 @@ export const App: React.FC = () => {
         onClose={() => setIsAuditLogOpen(false)}
         logs={auditLogs}
         onClearLogs={() => setAuditLogs([])}
+      />
+
+      {/* Package Configurator Modal */}
+      {isConfiguratorOpen && configuratorTier && (
+        <PackageConfiguratorModal
+          isOpen={isConfiguratorOpen}
+          onClose={() => {
+            setIsConfiguratorOpen(false);
+            setConfiguratorTier(null);
+            setItemToEdit(null);
+          }}
+          tier={configuratorTier}
+          allModels={arenaModels}
+          onAddToCart={handleAddToCart}
+          existingItemToEdit={itemToEdit}
+        />
+      )}
+
+      {/* Cart Drawer */}
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cart={cart}
+        onRemoveItem={handleRemoveCartItem}
+        onEditItem={handleEditCartItem}
+        onProceedToCheckout={handleProceedToCheckout}
+        onNavigateToPricing={() => setActiveTab('pricing')}
+      />
+
+      {/* QR-Only Pending Checkout Modal (Strictly stops at this screen) */}
+      <QrCheckoutModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        order={pendingOrder}
       />
     </div>
   );

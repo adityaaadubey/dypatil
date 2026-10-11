@@ -8,22 +8,35 @@ import {
   DollarSign, 
   Award, 
   AlertTriangle, 
-  ShieldCheck,
-  Sparkles,
-  ArrowRight
+  ShieldCheck, 
+  Sparkles, 
+  ArrowRight,
+  Play,
+  Coins
 } from 'lucide-react';
 import type { RecommendationResult, Model } from '../types';
+import type { TrialAllowance } from '../types/billing';
+import { TrialPromptRunnerModal } from './TrialPromptRunnerModal';
 
 interface RecommendationCardProps {
   result: RecommendationResult;
   onSimulateOutage?: (model: Model) => void;
+  trialAllowance: TrialAllowance;
+  onTrialAllowanceUpdated: (updated: TrialAllowance) => void;
 }
 
 export const RecommendationCard: React.FC<RecommendationCardProps> = ({ 
   result,
-  onSimulateOutage
+  onSimulateOutage,
+  trialAllowance,
+  onTrialAllowanceUpdated
 }) => {
   const [copied, setCopied] = useState(false);
+  const [trialModalModel, setTrialModalModel] = useState<{
+    model: Model;
+    rankLabel: 'Rank #1 — Gold Recommendation' | 'Rank #2 — Silver Recommendation' | 'Rank #3 — Bronze Recommendation';
+    rankBadgeClass: string;
+  } | null>(null);
 
   if (!result.selectedModel || !result.selectedEvaluation) {
     return null;
@@ -447,7 +460,207 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             )}
           </div>
         )}
+
+        {/* Section: Eligible Ranked Models for Trial Prompt Execution */}
+        <div style={{
+          marginTop: '20px',
+          paddingTop: '18px',
+          borderTop: '1px solid var(--border-subtle)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Coins size={15} color="var(--accent-mint)" />
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Execute Recommended Models (Trial Allowance)
+              </span>
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              Trial Tokens: <strong style={{ color: 'var(--accent-mint)' }}>{trialAllowance.remainingTrialTokens.toLocaleString()}</strong> remaining
+            </div>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: '12px'
+          }}>
+            {/* Rank #1 — Gold recommendation */}
+            <div style={{
+              padding: '12px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--bg-panel)',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: '10px'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className="badge badge-amber" style={{ fontSize: '10px' }}>
+                    Rank #1 — Gold Recommendation
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Best Fit</span>
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px' }}>
+                  {selectedModel.name}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  {selectedModel.provider} • {selectedEvaluation.effectiveLatencyP95}ms • ${selectedEvaluation.estimatedCost.toFixed(5)}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setTrialModalModel({
+                  model: selectedModel,
+                  rankLabel: 'Rank #1 — Gold Recommendation',
+                  rankBadgeClass: 'badge-amber'
+                })}
+                className="btn-primary"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '5px'
+                }}
+              >
+                <Play size={12} />
+                <span>Run Prompt (Trial)</span>
+              </button>
+            </div>
+
+            {/* Rank #2 — Silver recommendation */}
+            {(() => {
+              const silverCandidate = result.candidates.find(
+                (c) => c.status === 'eligible' && c.model.id !== selectedModel.id
+              );
+              if (!silverCandidate) return null;
+              return (
+                <div style={{
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-panel)',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '10px'
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className="badge badge-mint" style={{ fontSize: '10px' }}>
+                        Rank #2 — Silver Recommendation
+                      </span>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Alternative</span>
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px' }}>
+                      {silverCandidate.model.name}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      {silverCandidate.model.provider} • {silverCandidate.effectiveLatencyP95}ms • ${silverCandidate.estimatedCost.toFixed(5)}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setTrialModalModel({
+                      model: silverCandidate.model,
+                      rankLabel: 'Rank #2 — Silver Recommendation',
+                      rankBadgeClass: 'badge-mint'
+                    })}
+                    className="btn-secondary"
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    <Play size={12} color="var(--accent-mint)" />
+                    <span>Run Prompt (Trial)</span>
+                  </button>
+                </div>
+              );
+            })()}
+
+            {/* Rank #3 — Bronze recommendation */}
+            {(() => {
+              const eligibleOther = result.candidates.filter(
+                (c) => c.status === 'eligible' && c.model.id !== selectedModel.id
+              );
+              const bronzeCandidate = eligibleOther[1];
+              if (!bronzeCandidate) return null;
+              return (
+                <div style={{
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-panel)',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '10px'
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className="badge badge-purple" style={{ fontSize: '10px' }}>
+                        Rank #3 — Bronze Recommendation
+                      </span>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Contender</span>
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px' }}>
+                      {bronzeCandidate.model.name}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      {bronzeCandidate.model.provider} • {bronzeCandidate.effectiveLatencyP95}ms • ${bronzeCandidate.estimatedCost.toFixed(5)}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setTrialModalModel({
+                      model: bronzeCandidate.model,
+                      rankLabel: 'Rank #3 — Bronze Recommendation',
+                      rankBadgeClass: 'badge-purple'
+                    })}
+                    className="btn-secondary"
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    <Play size={12} color="var(--accent-purple)" />
+                    <span>Run Prompt (Trial)</span>
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
       </div>
+
+      {/* Trial Execution Modal */}
+      {trialModalModel && (
+        <TrialPromptRunnerModal
+          isOpen={true}
+          onClose={() => setTrialModalModel(null)}
+          model={trialModalModel.model}
+          rankLabel={trialModalModel.rankLabel}
+          rankBadgeClass={trialModalModel.rankBadgeClass}
+          promptText={result.prompt}
+          trialAllowance={trialAllowance}
+          onTrialAllowanceUpdated={onTrialAllowanceUpdated}
+        />
+      )}
     </div>
   );
 };
