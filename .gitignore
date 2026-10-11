@@ -47,3 +47,5 @@ scratch/
 *.orig
 *.swp
 *.swo
+
+.vercel

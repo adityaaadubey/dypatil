@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "name": "veyralabs-ai-live",
   "alias": ["veyralabs-ai-live.vercel.app"],
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
