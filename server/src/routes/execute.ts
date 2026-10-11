@@ -2,7 +2,10 @@ import express from 'express';
 import crypto from 'crypto';
 import { db, runTransaction } from '../database/db.ts';
 import { authenticateSession, type AuthRequest } from '../middleware/auth.ts';
-import { executeGeminiPrompt } from '../providers/geminiProvider.ts';
+import { inferenceRateLimiter } from '../middleware/rateLimit.ts';
+import { validateExecution } from '../middleware/validate.ts';
+import { executeGeminiPrompt, type ExecutionResult } from '../providers/geminiProvider.ts';
+import { executeGroqPrompt, isGroqModel } from '../providers/groqProvider.ts';
 
 const router = express.Router();
 
@@ -17,13 +20,9 @@ function calculateCreditCharge(totalTokens: number): number {
 }
 
 // POST /api/execute - Run live model prompt
-router.post('/', authenticateSession, async (req: AuthRequest, res) => {
+router.post('/', inferenceRateLimiter, authenticateSession, validateExecution, async (req: AuthRequest, res) => {
   const userId = req.user!.id;
   const { modelId, prompt, maxOutputTokens } = req.body;
-
-  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
-    return res.status(400).json({ error: 'Prompt is required.' });
-  }
 
   const targetModel = modelId || 'gemini-flash-latest';
   const trimmedPrompt = prompt.trim();
@@ -33,7 +32,7 @@ router.post('/', authenticateSession, async (req: AuthRequest, res) => {
   try {
     // 1. Check Cryptographic Prompt Cache (User isolated)
     const cached = db.prepare(`
-      SELECT id, response_text, token_count, hit_count
+      SELECT id, response_text, token_count, hit_count, provider
       FROM prompt_cache
       WHERE cache_key = ?
     `).get(cacheKey) as any;
@@ -44,19 +43,21 @@ router.post('/', authenticateSession, async (req: AuthRequest, res) => {
 
       // Record zero-token execution history for cache hit
       const execId = 'exec_' + crypto.randomBytes(8).toString('hex');
+      const providerLabel = cached.provider || (isGroqModel(targetModel) ? 'Groq' : 'Google Gemini');
+
       db.prepare(`
         INSERT INTO model_execution_history (
           id, user_id, request_id, model_id, provider, prompt, response_text,
           input_tokens, output_tokens, cost_estimate, latency_ms, status, cache_hit
-        ) VALUES (?, ?, ?, ?, 'Google Gemini (Cached)', ?, ?, 0, 0, 0.0, 5, 'success', 1)
-      `).run(execId, userId, requestId, targetModel, trimmedPrompt, cached.response_text);
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0.0, 5, 'success', 1)
+      `).run(execId, userId, requestId, targetModel, `${providerLabel} (Cached)`, trimmedPrompt, cached.response_text);
 
       const wallet = db.prepare('SELECT available_trial_credits FROM user_token_wallets WHERE user_id = ?').get(userId) as any;
 
       return res.json({
         requestId,
         model: targetModel,
-        provider: 'Google Gemini (Cryptographic Cache Hit)',
+        provider: `${providerLabel} (Cryptographic Cache Hit)`,
         text: cached.response_text,
         tokens: {
           promptTokens: 0,
@@ -85,8 +86,27 @@ router.post('/', authenticateSession, async (req: AuthRequest, res) => {
       });
     }
 
-    // 3. Execute Real Provider Inference via Google Gemini API
-    const result = await executeGeminiPrompt(targetModel, trimmedPrompt, maxOutputTokens);
+    // 3. Execute Real Provider Inference (Dispatch to Groq or Google Gemini)
+    let result: ExecutionResult;
+    let providerName = 'Google Gemini';
+    let providerRoute = 'google/gemini/v1beta';
+
+    if (isGroqModel(targetModel)) {
+      result = await executeGroqPrompt(targetModel, trimmedPrompt, maxOutputTokens);
+      providerName = 'Groq';
+      providerRoute = 'groq/openai/v1';
+    } else {
+      try {
+        result = await executeGeminiPrompt(targetModel, trimmedPrompt, maxOutputTokens);
+        providerName = 'Google Gemini';
+        providerRoute = 'google/gemini/v1beta';
+      } catch (geminiErr: any) {
+        console.warn(`[Execute Route] Gemini error (${geminiErr.message}), seamlessly failing over to Groq LPU...`);
+        result = await executeGroqPrompt('qwen/qwen3.8-27b', trimmedPrompt, maxOutputTokens);
+        providerName = 'Groq (Auto-Failover)';
+        providerRoute = 'groq/openai/v1';
+      }
+    }
 
     // 4. Calculate Credit Charge & Update Wallet + Ledger Atomically
     const creditCharge = calculateCreditCharge(result.totalTokens);
@@ -115,7 +135,7 @@ router.post('/', authenticateSession, async (req: AuthRequest, res) => {
         userId,
         requestId,
         result.model,
-        'google/gemini/v1beta',
+        providerRoute,
         result.promptTokens,
         result.candidateTokens,
         creditCharge,
@@ -124,7 +144,8 @@ router.post('/', authenticateSession, async (req: AuthRequest, res) => {
         JSON.stringify({
           latencyMs: result.latencyMs,
           totalTokens: result.totalTokens,
-          model: result.model
+          model: result.model,
+          provider: providerName
         })
       );
 
@@ -133,12 +154,13 @@ router.post('/', authenticateSession, async (req: AuthRequest, res) => {
         INSERT INTO model_execution_history (
           id, user_id, request_id, model_id, provider, prompt, response_text,
           input_tokens, output_tokens, cost_estimate, latency_ms, status, cache_hit
-        ) VALUES (?, ?, ?, ?, 'Google Gemini', ?, ?, ?, ?, ?, ?, 'success', 0)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'success', 0)
       `).run(
         execId,
         userId,
         requestId,
         result.model,
+        providerName,
         trimmedPrompt,
         result.text,
         result.promptTokens,
@@ -152,12 +174,13 @@ router.post('/', authenticateSession, async (req: AuthRequest, res) => {
         INSERT OR REPLACE INTO prompt_cache (
           id, cache_key, user_id, model_id, provider, request_fingerprint,
           response_text, token_count, expires_at, hit_count
-        ) VALUES (?, ?, ?, ?, 'Google Gemini', ?, ?, ?, datetime('now', '+7 days'), 0)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 days'), 0)
       `).run(
         'cch_' + crypto.randomBytes(8).toString('hex'),
         cacheKey,
         userId,
         result.model,
+        providerName,
         targetModel,
         result.text,
         result.totalTokens
@@ -169,7 +192,7 @@ router.post('/', authenticateSession, async (req: AuthRequest, res) => {
     return res.json({
       requestId,
       model: result.model,
-      provider: 'Google Gemini (Live API)',
+      provider: `${providerName} (Live API)`,
       text: result.text,
       tokens: {
         promptTokens: result.promptTokens,
@@ -185,18 +208,20 @@ router.post('/', authenticateSession, async (req: AuthRequest, res) => {
   } catch (err: any) {
     console.error('Execution failure:', err);
 
-    // Record failed execution record
     const execId = 'exec_' + crypto.randomBytes(8).toString('hex');
+    const providerLabel = isGroqModel(targetModel) ? 'Groq' : 'Google Gemini';
+
     db.prepare(`
       INSERT INTO model_execution_history (
         id, user_id, request_id, model_id, provider, prompt, response_text,
         input_tokens, output_tokens, cost_estimate, latency_ms, status, error_message, cache_hit
-      ) VALUES (?, ?, ?, ?, 'Google Gemini', ?, '', 0, 0, 0.0, ?, 'failed', ?, 0)
+      ) VALUES (?, ?, ?, ?, ?, ?, '', 0, 0, 0.0, ?, 'failed', ?, 0)
     `).run(
       execId,
       userId,
       requestId,
       targetModel,
+      providerLabel,
       trimmedPrompt,
       err.latencyMs || 0,
       err.message || 'Execution error'

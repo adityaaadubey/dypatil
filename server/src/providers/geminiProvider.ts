@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 // Real Google Gemini Provider Adapter for VeyraLabs
 
 export interface ExecutionResult {
@@ -11,13 +14,24 @@ export interface ExecutionResult {
   providerReportedCost?: number;
 }
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+export function getGeminiApiKey(): string {
+  const key = (process.env.GEMINI_API_KEY || '').trim();
+  if (key && key !== 'your_gemini_api_key_here') return key;
+  const fallback = (process.env.GEMINI_FALLBACK_API_KEY || '').trim();
+  if (fallback && fallback !== 'your_gemini_api_key_here') return fallback;
+  return '';
+}
 
 export async function executeGeminiPrompt(
   modelId: string,
   prompt: string,
   maxOutputTokens: number = 2048
 ): Promise<ExecutionResult> {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not configured on the server. Please set GEMINI_API_KEY in your server environment (.env).');
+  }
+
   const startTime = Date.now();
 
   // Normalize model ID for Google Generative Language API
@@ -32,7 +46,7 @@ export async function executeGeminiPrompt(
     mappedModel = 'gemini-flash-latest';
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${mappedModel}:generateContent?key=${GEMINI_API_KEY}`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${mappedModel}:generateContent?key=${apiKey}`;
 
   try {
     const response = await fetch(endpoint, {

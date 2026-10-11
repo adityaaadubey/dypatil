@@ -18,8 +18,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin@veyralabs.ai');
+  const [password, setPassword] = useState('AdminPassword123!');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -214,6 +214,79 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             }}
           >
             <span>{error}</span>
+          </div>
+        )}
+
+        {/* 1-Click Pre-Configured Credentials Helper */}
+        {mode === 'login' && (
+          <div style={{
+            backgroundColor: 'rgba(101, 60, 161, 0.15)',
+            border: '1px solid rgba(172, 145, 241, 0.4)',
+            borderRadius: '10px',
+            padding: '12px 14px',
+            marginBottom: '18px',
+            fontSize: '12px'
+          }}>
+            <div style={{ fontWeight: 600, color: 'var(--accent-lavender)', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShieldCheck size={15} color="#AC91F1" />
+                <span>Pre-Configured Demo Credentials</span>
+              </div>
+              <span style={{ fontSize: '11px', color: '#35D6A5', fontWeight: 600 }}>● Instant 1-Click Login</span>
+            </div>
+            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 10px 0' }}>
+              Click either card below to instantly sign in with pre-seeded test credentials:
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => handleQuickDemo('admin')}
+                disabled={loading}
+                style={{
+                  padding: '10px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--bg-secondary)',
+                  border: '1px solid var(--accent-lavender)',
+                  color: 'var(--text-primary)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ color: 'var(--accent-lavender)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+                  <span>🛡️ <b>Admin Account</b></span>
+                  <span style={{ fontSize: '10px', background: 'rgba(172,145,241,0.2)', padding: '1px 5px', borderRadius: '4px' }}>50k pts</span>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-primary)' }}>admin@veyralabs.ai</div>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Pass: AdminPassword123!</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickDemo('dev')}
+                disabled={loading}
+                style={{
+                  padding: '10px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--bg-secondary)',
+                  border: '1px solid #35D6A5',
+                  color: 'var(--text-primary)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ color: '#35D6A5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+                  <span>✨ <b>Dev Account</b></span>
+                  <span style={{ fontSize: '10px', background: 'rgba(53,214,165,0.2)', padding: '1px 5px', borderRadius: '4px' }}>10k pts</span>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-primary)' }}>user@veyralabs.ai</div>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Pass: UserPassword123!</div>
+              </button>
+            </div>
           </div>
         )}
 

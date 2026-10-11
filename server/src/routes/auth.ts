@@ -2,18 +2,26 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { db, runTransaction } from '../database/db.ts';
-import { createRateLimiter } from '../middleware/rateLimit.ts';
+import { authRateLimiter } from '../middleware/rateLimit.ts';
 import { authenticateSession, type AuthRequest } from '../middleware/auth.ts';
+import { validateSignup, validateLogin } from '../middleware/validate.ts';
 
 const router = express.Router();
-const authLimiter = createRateLimiter(15, 60000); // 15 attempts per minute
 
 const INITIAL_TRIAL_CREDITS = parseInt(process.env.INITIAL_TRIAL_CREDITS || '10000', 10);
+const SESSION_EXPIRATION_DAYS = parseInt(process.env.SESSION_EXPIRATION_DAYS || '30', 10);
+
+const getCookieOptions = (expiresAt: Date) => ({
+  httpOnly: true,
+  secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
+  sameSite: (process.env.NODE_ENV === 'production' ? 'strict' : 'lax') as 'strict' | 'lax',
+  expires: expiresAt
+});
 
 // Helper to create session token
 function createSession(userId: string) {
   const token = 'ses_' + crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  const expiresAt = new Date(Date.now() + SESSION_EXPIRATION_DAYS * 24 * 60 * 60 * 1000);
   db.prepare(`
     INSERT INTO user_sessions (id, user_id, token, expires_at)
     VALUES (?, ?, ?, ?)
@@ -22,7 +30,7 @@ function createSession(userId: string) {
 }
 
 // 1. SIGNUP
-router.post('/signup', authLimiter, (req, res) => {
+router.post('/signup', authRateLimiter, validateSignup, (req, res) => {
   const { name, email, password, phone } = req.body;
 
   if (!name || typeof name !== 'string' || name.trim().length < 2) {
@@ -87,12 +95,7 @@ router.post('/signup', authLimiter, (req, res) => {
 
     const { token, expiresAt } = createSession(userId);
 
-    res.cookie('veyralabs_session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      expires: expiresAt
-    });
+    res.cookie('veyralabs_session', token, getCookieOptions(expiresAt));
 
     return res.status(201).json({
       message: 'Account successfully created.',
@@ -117,12 +120,8 @@ router.post('/signup', authLimiter, (req, res) => {
 });
 
 // 2. LOGIN
-router.post('/login', authLimiter, (req, res) => {
+router.post('/login', authRateLimiter, validateLogin, (req, res) => {
   const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required.' });
-  }
 
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -153,12 +152,7 @@ router.post('/login', authLimiter, (req, res) => {
 
     const { token, expiresAt } = createSession(user.id);
 
-    res.cookie('veyralabs_session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      expires: expiresAt
-    });
+    res.cookie('veyralabs_session', token, getCookieOptions(expiresAt));
 
     return res.json({
       message: 'Logged in successfully.',

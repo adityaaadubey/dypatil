@@ -1,6 +1,7 @@
 import express from 'express';
 import { db } from '../database/db.ts';
 import { authenticateSession, type AuthRequest } from '../middleware/auth.ts';
+import { validateProfileUpdate } from '../middleware/validate.ts';
 
 const router = express.Router();
 
@@ -45,7 +46,7 @@ router.get('/', authenticateSession, (req: AuthRequest, res) => {
 });
 
 // PATCH /api/profile - Update personal profile preferences
-router.patch('/', authenticateSession, (req: AuthRequest, res) => {
+router.patch('/', authenticateSession, validateProfileUpdate, (req: AuthRequest, res) => {
   const userId = req.user!.id;
   const { displayName, bio, phone, preferredTheme, preferredLanguage } = req.body;
 

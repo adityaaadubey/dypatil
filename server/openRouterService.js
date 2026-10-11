@@ -24,10 +24,16 @@ export function isFreeModelsOnly() {
   return envVal.toLowerCase() !== 'false';
 }
 
-export function getOpenRouterApiKey() {
-  const key = process.env.OPENROUTER_API_KEY || '';
-  if (key === 'your_key_here' || key.trim() === '') return '';
-  return key.trim();
+export function getOpenRouterApiKey(useFallback = false) {
+  if (useFallback && process.env.OPENROUTER_FALLBACK_API_KEY) {
+    const fb = process.env.OPENROUTER_FALLBACK_API_KEY.trim();
+    if (fb && fb !== 'your_key_here' && fb !== 'your_openrouter_api_key_here') return fb;
+  }
+  const key = (process.env.OPENROUTER_API_KEY || '').trim();
+  if (key && key !== 'your_key_here' && key !== 'your_openrouter_api_key_here') return key;
+  const fb = (process.env.OPENROUTER_FALLBACK_API_KEY || '').trim();
+  if (fb && fb !== 'your_key_here' && fb !== 'your_openrouter_api_key_here') return fb;
+  return '';
 }
 
 /**

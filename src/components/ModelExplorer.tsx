@@ -28,6 +28,7 @@ export const ModelExplorer: React.FC<ModelExplorerProps> = ({
   const [modality, setModality] = useState<CatalogFilterOptions['modality']>('all');
   const [isOpenWeightOnly, setIsOpenWeightOnly] = useState(false);
   const [verifiedPricingOnly, setVerifiedPricingOnly] = useState(false);
+  const [executableOnly, setExecutableOnly] = useState(false);
   const [sortBy, setSortBy] = useState<CatalogFilterOptions['sortBy']>('elo_desc');
 
   // Favorites state
@@ -44,6 +45,11 @@ export const ModelExplorer: React.FC<ModelExplorerProps> = ({
       if (m.provider) set.add(m.provider);
     });
     return Array.from(set).sort();
+  }, [catalog]);
+
+  // Executable count
+  const executableCount = useMemo(() => {
+    return catalog.filter(m => m.provider === 'Groq' || m.provider === 'OpenRouter' || m.provider === 'Google' || m.modelKey.startsWith('groq/') || m.modelKey.includes('gemini') || m.modelKey.includes('deepseek')).length;
   }, [catalog]);
 
   // Counts by tier
@@ -70,6 +76,10 @@ export const ModelExplorer: React.FC<ModelExplorerProps> = ({
       verifiedPricingOnly,
       sortBy
     });
+
+    if (executableOnly) {
+      items = items.filter(m => m.provider === 'Groq' || m.provider === 'OpenRouter' || m.provider === 'Google' || m.modelKey.startsWith('groq/') || m.modelKey.includes('gemini') || m.modelKey.includes('deepseek'));
+    }
 
     if (showFavouritesOnly) {
       items = items.filter((m) => favouriteIds.includes(m.id));
@@ -215,6 +225,26 @@ export const ModelExplorer: React.FC<ModelExplorerProps> = ({
             }}
           >
             Hybrid / Free Quota Tiers ({tierCounts.hybrid})
+          </button>
+
+          <button
+            onClick={() => setExecutableOnly(!executableOnly)}
+            style={{
+              padding: '7px 16px',
+              fontSize: '12px',
+              fontWeight: executableOnly ? 700 : 500,
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: executableOnly ? 'rgba(53, 214, 165, 0.25)' : 'var(--bg-card)',
+              color: executableOnly ? '#35D6A5' : 'var(--text-secondary)',
+              border: executableOnly ? '1px solid #35D6A5' : '1px solid var(--border-subtle)',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span>⚡ Executable APIs ({executableCount})</span>
           </button>
 
           {favouriteIds.length > 0 && (

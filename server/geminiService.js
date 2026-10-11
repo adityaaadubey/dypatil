@@ -38,10 +38,18 @@ const PAID_GEMINI_MODELS = new Set([
 ]);
 
 /**
- * Returns the configured Gemini API key without exposing it.
+ * Returns the configured Gemini API key with automatic emergency fallback support.
  */
-export function getGeminiApiKey() {
-  return (process.env.GEMINI_API_KEY || '').trim();
+export function getGeminiApiKey(useFallback = false) {
+  if (useFallback && process.env.GEMINI_FALLBACK_API_KEY) {
+    const fb = process.env.GEMINI_FALLBACK_API_KEY.trim();
+    if (fb && fb !== 'your_gemini_api_key_here') return fb;
+  }
+  const key = (process.env.GEMINI_API_KEY || '').trim();
+  if (key && key !== 'your_gemini_api_key_here') return key;
+  const fb = (process.env.GEMINI_FALLBACK_API_KEY || '').trim();
+  if (fb && fb !== 'your_gemini_api_key_here') return fb;
+  return '';
 }
 
 /**

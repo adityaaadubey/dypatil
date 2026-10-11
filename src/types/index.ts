@@ -1,4 +1,5 @@
 export type Provider = 
+  | 'Groq'
   | 'Anthropic'
   | 'OpenAI'
   | 'Google'

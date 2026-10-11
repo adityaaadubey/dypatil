@@ -72,10 +72,16 @@ export async function executeInference(params: {
       body: JSON.stringify(params)
     });
 
-    const data = await res.json();
+    let data: any = {};
+    try {
+      const text = await res.text();
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = {};
+    }
 
     if (!res.ok || !data.success) {
-      const errorMsg = data.error || `HTTP ${res.status} inference error`;
+      const errorMsg = data.error || (res.status ? `HTTP ${res.status} inference error` : 'Inference request failed');
       return {
         content: '',
         model: params.model,

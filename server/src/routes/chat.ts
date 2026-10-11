@@ -14,7 +14,15 @@ import {
   getGeminiApiKey,
   isGeminiModel 
 } from '../../geminiService.js';
+import {
+  executeGroqChatCompletion,
+  streamGroqChatCompletion,
+  isGroqModel,
+  isGroqConfigured
+} from '../providers/groqProvider.ts';
 import { telemetryTracker } from '../../telemetryTracker.js';
+import { inferenceRateLimiter } from '../middleware/rateLimit.ts';
+import { validateChatCompletion } from '../middleware/validate.ts';
 
 const router = express.Router();
 
@@ -27,8 +35,8 @@ router.get('/telemetry', (_req, res) => {
   });
 });
 
-// POST /api/chat/completions - Unified inference endpoint with dual-provider routing and SSE streaming
-router.post('/chat/completions', async (req, res) => {
+// POST /api/chat/completions - Unified inference endpoint with multi-provider routing (Groq, Gemini, OpenRouter) and SSE streaming
+router.post('/chat/completions', inferenceRateLimiter, validateChatCompletion, async (req, res) => {
   const { 
     model, 
     messages, 
@@ -67,7 +75,27 @@ router.post('/chat/completions', async (req, res) => {
     };
 
     try {
-      if (isGeminiModel(model)) {
+      if (isGroqModel(model)) {
+        console.info(`[Inference Stream] Streaming "${model}" directly from Groq LPU API...`);
+        const result = await streamGroqChatCompletion({
+          model,
+          messages,
+          prompt,
+          mode,
+          temperature,
+          maxTokens,
+          onChunk: sendChunk,
+          signal: abortController.signal
+        });
+
+        if (result.success) {
+          res.write(`data: ${JSON.stringify({ type: 'done', result })}\n\n`);
+          return res.end();
+        }
+
+        res.write(`data: ${JSON.stringify({ type: 'error', error: result.error, result })}\n\n`);
+        return res.end();
+      } else if (isGeminiModel(model)) {
         console.info(`[Inference Stream] Streaming "${model}" directly from Google Gemini API (mode: ${mode})...`);
         const result = await streamGeminiChatCompletion({
           model,
@@ -85,30 +113,25 @@ router.post('/chat/completions', async (req, res) => {
           return res.end();
         }
 
-        // Auto mode failover attempt if stream failed before outputting
-        if (mode === 'auto' && Array.isArray(failoverModels) && failoverModels.length > 0 && !result.content) {
-          console.info(`[Inference Stream] Gemini primary "${model}" failed. Attempting streaming failovers...`);
-          for (const fallbackModel of failoverModels) {
-            if (!fallbackModel || fallbackModel === model) continue;
-            const fallbackFn = isGeminiModel(fallbackModel) ? streamGeminiChatCompletion : streamOpenRouterChatCompletion;
-            const fallbackRes = await fallbackFn({
-              model: fallbackModel,
-              messages,
-              prompt,
-              mode: 'manual',
-              temperature,
-              maxTokens,
-              onChunk: sendChunk,
-              signal: abortController.signal
-            });
-
-            if (fallbackRes.success) {
-              res.write(`data: ${JSON.stringify({ 
-                type: 'done', 
-                result: { ...fallbackRes, failoverUsed: true, failedPrimaryModel: model } 
-              })}\n\n`);
-              return res.end();
-            }
+        // Auto mode failover attempt to Groq if stream failed
+        if (mode === 'auto') {
+          console.info(`[Inference Stream] Gemini primary "${model}" failed. Failing over to Groq LPU stream...`);
+          const groqRes = await streamGroqChatCompletion({
+            model: 'qwen/qwen3.8-27b',
+            messages,
+            prompt,
+            mode: 'manual',
+            temperature,
+            maxTokens,
+            onChunk: sendChunk,
+            signal: abortController.signal
+          });
+          if (groqRes.success) {
+            res.write(`data: ${JSON.stringify({ 
+              type: 'done', 
+              result: { ...groqRes, failoverUsed: true, failedPrimaryModel: model } 
+            })}\n\n`);
+            return res.end();
           }
         }
 
@@ -133,30 +156,25 @@ router.post('/chat/completions', async (req, res) => {
           return res.end();
         }
 
-        // Auto mode failover attempt if OpenRouter primary failed
-        if (mode === 'auto' && Array.isArray(failoverModels) && failoverModels.length > 0 && !result.content) {
-          console.info(`[Inference Stream] OpenRouter primary "${model}" failed. Attempting streaming failovers...`);
-          for (const fallbackModel of failoverModels) {
-            if (!fallbackModel || fallbackModel === model) continue;
-            const fallbackFn = isGeminiModel(fallbackModel) ? streamGeminiChatCompletion : streamOpenRouterChatCompletion;
-            const fallbackRes = await fallbackFn({
-              model: fallbackModel,
-              messages,
-              prompt,
-              mode: 'manual',
-              temperature,
-              maxTokens,
-              onChunk: sendChunk,
-              signal: abortController.signal
-            });
-
-            if (fallbackRes.success) {
-              res.write(`data: ${JSON.stringify({ 
-                type: 'done', 
-                result: { ...fallbackRes, failoverUsed: true, failedPrimaryModel: model } 
-              })}\n\n`);
-              return res.end();
-            }
+        // Auto mode failover to Groq
+        if (mode === 'auto') {
+          console.info(`[Inference Stream] OpenRouter primary "${model}" failed. Failing over to Groq LPU stream...`);
+          const groqRes = await streamGroqChatCompletion({
+            model: 'qwen/qwen3.8-27b',
+            messages,
+            prompt,
+            mode: 'manual',
+            temperature,
+            maxTokens,
+            onChunk: sendChunk,
+            signal: abortController.signal
+          });
+          if (groqRes.success) {
+            res.write(`data: ${JSON.stringify({ 
+              type: 'done', 
+              result: { ...groqRes, failoverUsed: true, failedPrimaryModel: model } 
+            })}\n\n`);
+            return res.end();
           }
         }
 
@@ -175,6 +193,23 @@ router.post('/chat/completions', async (req, res) => {
 
   // Non-streaming completion handling
   try {
+    if (isGroqModel(model)) {
+      console.info(`[Inference Router] Routing "${model}" directly to Groq LPU API...`);
+      const result = await executeGroqChatCompletion({
+        model,
+        messages,
+        prompt,
+        mode,
+        temperature,
+        maxTokens
+      });
+
+      if (result.success) {
+        return res.json(result);
+      }
+      return res.status(result.statusCode || 500).json(result);
+    }
+
     if (isGeminiModel(model)) {
       console.info(`[Inference Router] Routing "${model}" directly to Google Gemini API (mode: ${mode})...`);
       const result = await executeGeminiChatCompletion({
@@ -190,40 +225,23 @@ router.post('/chat/completions', async (req, res) => {
         return res.json(result);
       }
 
-      if (mode === 'auto' && Array.isArray(failoverModels) && failoverModels.length > 0) {
-        console.info(`[Inference Router] Gemini primary "${model}" failed (${result.error}). Attempting failovers...`);
-        for (const fallbackModel of failoverModels) {
-          if (!fallbackModel || fallbackModel === model) continue;
-
-          let fallbackRes: any;
-          if (isGeminiModel(fallbackModel)) {
-            fallbackRes = await executeGeminiChatCompletion({
-              model: fallbackModel,
-              messages,
-              prompt,
-              mode: 'manual',
-              temperature,
-              maxTokens
-            });
-          } else {
-            fallbackRes = await executeChatCompletion({
-              model: fallbackModel,
-              messages,
-              prompt,
-              failoverModels: [],
-              mode: 'manual',
-              temperature,
-              maxTokens
-            });
-          }
-
-          if (fallbackRes.success) {
-            return res.json({
-              ...fallbackRes,
-              failoverUsed: true,
-              failedPrimaryModel: model
-            });
-          }
+      // Auto mode fallback to Groq
+      if (mode === 'auto') {
+        console.info(`[Inference Router] Gemini failed (${result.error}). Auto-failing over to Groq LPU...`);
+        const groqFallback = await executeGroqChatCompletion({
+          model: 'qwen/qwen3.8-27b',
+          messages,
+          prompt,
+          mode: 'manual',
+          temperature,
+          maxTokens
+        });
+        if (groqFallback.success) {
+          return res.json({
+            ...groqFallback,
+            failoverUsed: true,
+            failedPrimaryModel: model
+          });
         }
       }
 
@@ -247,27 +265,23 @@ router.post('/chat/completions', async (req, res) => {
       return res.json(result);
     }
 
-    // In Auto mode, try Gemini fallback if present in failovers
-    if (mode === 'auto' && Array.isArray(failoverModels) && failoverModels.length > 0) {
-      const geminiFailovers = failoverModels.filter((m: string) => isGeminiModel(m));
-      for (const fallbackModel of geminiFailovers) {
-        console.info(`[Inference Router] OpenRouter failed, attempting fallback to Gemini Direct "${fallbackModel}"...`);
-        const fallbackRes = await executeGeminiChatCompletion({
-          model: fallbackModel,
-          messages,
-          prompt,
-          mode: 'manual',
-          temperature,
-          maxTokens
+    // In Auto mode, try Groq fallback
+    if (mode === 'auto') {
+      console.info(`[Inference Router] OpenRouter failed (${result.error}). Auto-failing over to Groq LPU...`);
+      const groqFallback = await executeGroqChatCompletion({
+        model: 'qwen/qwen3.8-27b',
+        messages,
+        prompt,
+        mode: 'manual',
+        temperature,
+        maxTokens
+      });
+      if (groqFallback.success) {
+        return res.json({
+          ...groqFallback,
+          failoverUsed: true,
+          failedPrimaryModel: model
         });
-
-        if (fallbackRes.success) {
-          return res.json({
-            ...fallbackRes,
-            failoverUsed: true,
-            failedPrimaryModel: model
-          });
-        }
       }
     }
 

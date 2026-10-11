@@ -128,6 +128,15 @@ export const FlippableModelCard: React.FC<FlippableModelCardProps> = ({
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {getTierBadge()}
+                {(model.provider === 'Groq' || model.provider === 'OpenRouter' || model.provider === 'Google' || model.modelKey.startsWith('groq/') || model.modelKey.includes('gemini') || model.modelKey.includes('deepseek')) ? (
+                  <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(53, 214, 165, 0.15)', color: '#35D6A5', border: '1px solid rgba(53, 214, 165, 0.3)', fontWeight: 600, letterSpacing: '0.3px' }}>
+                    ⚡ EXECUTABLE
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(172, 145, 241, 0.08)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', fontWeight: 500, letterSpacing: '0.3px' }}>
+                    METADATA ONLY
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={(e) => {

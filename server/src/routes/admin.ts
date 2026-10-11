@@ -88,9 +88,22 @@ router.patch('/users/:id/status', authenticateSession, requireAdmin, (req: AuthR
     return res.status(400).json({ error: 'Status must be active or suspended.' });
   }
 
+  // Prevent admin self-suspension lockout
+  if (req.user!.id === id && status === 'suspended') {
+    return res.status(400).json({ error: 'Security constraint: Cannot suspend your own administrative account.' });
+  }
+
+  const targetUser = db.prepare('SELECT id, name, email, role FROM users WHERE id = ?').get(id) as any;
+  if (!targetUser) {
+    return res.status(404).json({ error: 'User not found.' });
+  }
+
   db.prepare('UPDATE users SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(status, id);
 
-  return res.json({ message: `User status updated to ${status}.` });
+  return res.json({ 
+    message: `User status updated to ${status}.`,
+    user: { id, status }
+  });
 });
 
 export default router;

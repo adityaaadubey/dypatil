@@ -64,6 +64,22 @@ export interface ExecutionResponse {
 
 const API_BASE = '/api';
 
+async function parseSafeResponse(res: Response, defaultError: string) {
+  const text = await res.text();
+  let data: any = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { error: text };
+    }
+  }
+  if (!res.ok) {
+    throw new Error(data.error || `${defaultError} (${res.status}: ${res.statusText || 'Server Error'})`);
+  }
+  return data;
+}
+
 export const authService = {
   // 1. Session & Auth
   async getSession(): Promise<{ user: User; profile: Profile; wallet: Wallet } | null> {
@@ -73,7 +89,8 @@ export const authService = {
         credentials: 'include'
       });
       if (!res.ok) return null;
-      return await res.json();
+      const text = await res.text();
+      return text ? JSON.parse(text) : null;
     } catch {
       return null;
     }
@@ -86,9 +103,7 @@ export const authService = {
       credentials: 'include',
       body: JSON.stringify({ name, email, password, phone })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to sign up.');
-    return data;
+    return await parseSafeResponse(res, 'Failed to sign up.');
   },
 
   async login(email: string, password: string) {
@@ -98,9 +113,7 @@ export const authService = {
       credentials: 'include',
       body: JSON.stringify({ email, password })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to log in.');
-    return data;
+    return await parseSafeResponse(res, 'Failed to log in.');
   },
 
   async logout() {
@@ -113,8 +126,7 @@ export const authService = {
   // 2. Profile & Preferences
   async getProfile() {
     const res = await fetch(`${API_BASE}/profile`, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to load profile.');
-    return await res.json();
+    return await parseSafeResponse(res, 'Failed to load profile.');
   },
 
   async updateProfile(updates: Partial<Profile>) {
@@ -124,28 +136,23 @@ export const authService = {
       credentials: 'include',
       body: JSON.stringify(updates)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to update profile.');
-    return data;
+    return await parseSafeResponse(res, 'Failed to update profile.');
   },
 
   // 3. Wallet & Usage
   async getWallet(): Promise<Wallet> {
     const res = await fetch(`${API_BASE}/profile/wallet`, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to load wallet.');
-    return await res.json();
+    return await parseSafeResponse(res, 'Failed to load wallet.');
   },
 
   async getUsageAnalytics() {
     const res = await fetch(`${API_BASE}/profile/usage`, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to load usage analytics.');
-    return await res.json();
+    return await parseSafeResponse(res, 'Failed to load usage analytics.');
   },
 
   async getHistory(search: string = '', limit: number = 50): Promise<{ history: ExecutionRecord[] }> {
     const res = await fetch(`${API_BASE}/profile/history?search=${encodeURIComponent(search)}&limit=${limit}`, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to load execution history.');
-    return await res.json();
+    return await parseSafeResponse(res, 'Failed to load execution history.');
   },
 
   async deleteHistory(id: string) {
@@ -153,9 +160,7 @@ export const authService = {
       method: 'DELETE',
       credentials: 'include'
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to delete history record.');
-    return data;
+    return await parseSafeResponse(res, 'Failed to delete history record.');
   },
 
   // 4. Live Model Execution
@@ -166,22 +171,18 @@ export const authService = {
       credentials: 'include',
       body: JSON.stringify({ modelId, prompt, maxOutputTokens })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Execution failed.');
-    return data;
+    return await parseSafeResponse(res, 'Execution failed.');
   },
 
   // 5. Admin Endpoints
   async getAdminAnalytics() {
     const res = await fetch(`${API_BASE}/admin/analytics`, { credentials: 'include' });
-    if (!res.ok) throw new Error('Unauthorized or failed to fetch admin analytics.');
-    return await res.json();
+    return await parseSafeResponse(res, 'Unauthorized or failed to fetch admin analytics.');
   },
 
   async getAdminUsers() {
     const res = await fetch(`${API_BASE}/admin/users`, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to fetch user directory.');
-    return await res.json();
+    return await parseSafeResponse(res, 'Failed to fetch user directory.');
   },
 
   async updateUserStatus(id: string, status: 'active' | 'suspended') {
@@ -191,8 +192,6 @@ export const authService = {
       credentials: 'include',
       body: JSON.stringify({ status })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to update user status.');
-    return data;
+    return await parseSafeResponse(res, 'Failed to update user status.');
   }
 };
