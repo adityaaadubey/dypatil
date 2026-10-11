@@ -100,33 +100,40 @@ dypatil/
 │   ├── openRouterService.js       # OpenRouter gateway adapter
 │   └── telemetryTracker.js        # TTFT, latency & token usage tracker
 ├── src/                           # React 19 Frontend Application
-│   ├── components/                # UI Components (Brand Palette: #020731, #653CA1, #AC91F1)
+│   ├── components/                # UI Components (Theme Palette: #020731, #653CA1, #AC91F1, #10B981)
 │   │   ├── AdminDashboard.tsx     # Admin KPI metrics & user ledger
 │   │   ├── AnalyticsCharts.tsx    # 12 interactive Recharts visualizations
 │   │   ├── AuthModal.tsx          # Sign In / Sign Up modal with 1-click demo logins
 │   │   ├── FlippableModelCard.tsx # 3D perspective flippable model specification cards
-│   │   ├── Header.tsx             # Brand header with wallet balance & navigation
-│   │   ├── LeaderboardExplorer.tsx# Category leaderboard with 4-way comparison
+│   │   ├── Header.tsx             # Brand header with wallet balance, SLA status & navigation
+│   │   ├── LeaderboardExplorer.tsx# Category leaderboard with 1-click model details & CSV export
 │   │   ├── LiveExecutionModal.tsx # Live prompt execution modal
-│   │   ├── LiveInferenceChat.tsx  # Real-time streaming chat component
-│   │   ├── ModelExplorer.tsx      # Multi-tier filterable model catalog
-│   │   ├── RecommendationStudio.tsx# Math router query portal
+│   │   ├── LiveInferenceChat.tsx  # Top-3 ranked model inference chat (Gold/Silver/Bronze) with live tokens
+│   │   ├── MathExplainerModal.tsx # Mathematical proof & cost arithmetic modal
+│   │   ├── ModelDetailModal.tsx   # Universal Portaled Model Profile modal with Token Cost Calculator
+│   │   ├── ModelExplorer.tsx      # Multi-tier filterable 656-model catalog
+│   │   ├── ModelRulebook.tsx      # Official AI Model Rulebook with governance policies
+│   │   ├── RecommendationCard.tsx # Ranked recommendation card with failover simulator & Live Chat
+│   │   ├── RecommendationInfoModal.tsx # 4-Stage Architecture & Math Explainer ⓘ modal with FAQs
+│   │   ├── RecommendationStudio.tsx # Dynamic constraint SLA gateway with Info ⓘ button in top right
 │   │   └── UserProfileModal.tsx   # User profile, wallet top-ups & token ledgers
 │   ├── config/                    # Pricing tiers & package definitions
 │   ├── data/                      # 656-model Arena dataset & snapshots
 │   ├── services/                  # Frontend services
 │   │   ├── authService.ts         # Safe API client for authentication & execution
+│   │   ├── billingService.ts      # Cart, packages, order & trial allowance service
 │   │   ├── inferenceService.ts    # Streaming SSE & prompt execution service
-│   │   ├── routerEngine.ts        # Deterministic constraint solving algorithms
-│   │   └── supabaseClient.ts      # Frontend Supabase client
+│   │   ├── modelCatalogService.ts # 656-model catalog enrichment & normalization
+│   │   ├── routerEngine.ts        # Deterministic constraint solving & Pareto optimization
+│   │   └── supabaseClient.ts      # Frontend Supabase cloud client
 │   ├── types/                     # TypeScript domain models & interfaces
-│   ├── App.tsx                    # Main root component & navigation state
+│   ├── App.tsx                    # Main root component & global modal state management
 │   ├── main.tsx                   # React DOM entry point
 │   └── index.css                  # Global design system & theme variables
 ├── .env.example                   # Environment configuration template
 ├── package.json                   # Dependencies & scripts
 ├── tsconfig.json                  # TypeScript configuration
-├── vercel.json                    # Vercel deployment configuration
+├── vercel.json                    # Vercel deployment configuration (alias: veyralabs-ai-live.vercel.app)
 └── vite.config.ts                 # Vite bundler & API reverse-proxy configuration
 ```
 

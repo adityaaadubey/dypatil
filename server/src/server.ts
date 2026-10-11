@@ -30,7 +30,12 @@ seedDatabase().catch(err => {
 app.use(securityHeadersMiddleware);
 
 // 2. Strict Configurable CORS
-const defaultOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'];
+const defaultOrigins = [
+  'http://localhost:5173', 
+  'http://127.0.0.1:5173', 
+  'http://localhost:3000',
+  'https://veyralabs-ai-live.vercel.app'
+];
 const configuredOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean)
   : defaultOrigins;
@@ -39,7 +44,7 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow non-browser requests (e.g., server-to-server or curl)
     if (!origin) return callback(null, true);
-    if (configuredOrigins.includes(origin) || defaultOrigins.includes(origin)) {
+    if (configuredOrigins.includes(origin) || defaultOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
       return callback(null, true);
     }
     return callback(new Error(`CORS blocked for untrusted origin: ${origin}`));
