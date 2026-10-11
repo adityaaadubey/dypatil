@@ -17,6 +17,7 @@ import { PackageConfiguratorModal } from './components/PackageConfiguratorModal'
 import { CartDrawer } from './components/CartDrawer';
 import { QrCheckoutModal } from './components/QrCheckoutModal';
 import { ModelExplorer } from './components/ModelExplorer';
+import { ModelDetailModal } from './components/ModelDetailModal';
 import { ModelComparisonStudio } from './components/ModelComparisonStudio';
 import { HistoryWorkspace } from './components/HistoryWorkspace';
 import { AuthModal } from './components/AuthModal';
@@ -351,6 +352,34 @@ export const App: React.FC = () => {
     setActiveTab('comparison');
   };
 
+  // Global Model Detail Profile Modal State (Leaderboard, Overview, Analytics, Explorer)
+  const [selectedDetailModel, setSelectedDetailModel] = useState<EnrichedModelCatalogItem | null>(null);
+  const [favouriteIds, setFavouriteIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('veyralabs_favs');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleOpenModelDetail = (m: ArenaModel | EnrichedModelCatalogItem) => {
+    if ('accessTier' in m && 'capabilities' in m) {
+      setSelectedDetailModel(m as EnrichedModelCatalogItem);
+      return;
+    }
+    const match = enrichedCatalog.find((em) => 
+      em.id === m.id || 
+      em.modelKey === (m as ArenaModel).modelKey || 
+      em.name.toLowerCase() === (m as ArenaModel).modelDisplayName.toLowerCase()
+    );
+    if (match) {
+      setSelectedDetailModel(match);
+    } else {
+      setSelectedDetailModel(enrichedCatalog[0] || null);
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Navigation Header */}
@@ -436,7 +465,7 @@ export const App: React.FC = () => {
           {activeTab === 'leaderboard' && (
             <LeaderboardExplorer
               models={arenaModels}
-              onViewModelProfile={(m) => { setSelectedRulebookModel(m); setActiveTab('rulebook'); }}
+              onViewModelProfile={handleOpenModelDetail}
               selectedForComparison={selectedForComparison}
               onToggleCompare={handleToggleCompare}
               onOpenCompareModal={() => setIsCompareModalOpen(true)}
@@ -447,7 +476,7 @@ export const App: React.FC = () => {
           {activeTab === 'analytics' && (
             <AnalyticsCharts
               models={arenaModels}
-              onViewModelProfile={(m) => { setSelectedRulebookModel(m); setActiveTab('rulebook'); }}
+              onViewModelProfile={handleOpenModelDetail}
             />
           )}
 
@@ -472,7 +501,7 @@ export const App: React.FC = () => {
               freshness={freshness}
               onRefreshData={handleRefreshData}
               onSelectCategory={(_cat) => { setActiveTab('leaderboard'); }}
-              onViewModelProfile={(m) => { setSelectedRulebookModel(m); setActiveTab('rulebook'); }}
+              onViewModelProfile={handleOpenModelDetail}
               onNavigateToTab={setActiveTab}
             />
           )}
@@ -562,6 +591,7 @@ export const App: React.FC = () => {
                 setPreference={setPreference}
                 onRecommend={() => handleRecommend(models, constraints)}
                 isLoading={isLoading}
+                result={result}
               />
 
               {/* Recommended Model Card OR No-Valid-Model State */}
@@ -720,6 +750,27 @@ export const App: React.FC = () => {
         defaultModelId={result?.selectedModel?.id || 'gemini-flash-latest'}
         defaultPrompt={prompt}
         onExecuted={refreshSession}
+      />
+
+      {/* Global Model Detail Modal (Available across Leaderboards, Overview, Analytics, Explorer) */}
+      <ModelDetailModal
+        isOpen={Boolean(selectedDetailModel)}
+        onClose={() => setSelectedDetailModel(null)}
+        model={selectedDetailModel}
+        isFavorite={selectedDetailModel ? favouriteIds.includes(selectedDetailModel.id) : false}
+        onToggleFavorite={(id) => {
+          setFavouriteIds((prev) => {
+            const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+            try {
+              localStorage.setItem('veyralabs_favs', JSON.stringify(next));
+            } catch {
+              // ignore
+            }
+            return next;
+          });
+        }}
+        onSelectForCompare={handleSelectForCompare}
+        onOpenTestPrompt={handleOpenTestPrompt}
       />
     </div>
   );

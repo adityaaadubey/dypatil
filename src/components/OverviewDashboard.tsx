@@ -238,7 +238,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               Current Category Leaders
             </h2>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Highest-ranked verified models across discovered Arena leaderboard domains.
+              Highest-ranked verified models across discovered leaderboard domains.
             </p>
           </div>
           <button
@@ -397,7 +397,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         <div className="mr-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Top Evaluated Models (Arena Leaderboard)
+              Top Evaluated Models (Leaderboard)
             </h3>
             <button
               onClick={() => onNavigateToTab('leaderboard')}

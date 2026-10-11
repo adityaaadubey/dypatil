@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Sparkles, 
   Clock, 
@@ -6,15 +6,18 @@ import {
   Gauge, 
   Layers, 
   CheckCircle2, 
-  ShieldCheck
+  ShieldCheck,
+  Info
 } from 'lucide-react';
 import type { 
   Constraints, 
   RoutingPreference, 
-  TaskCategory 
+  TaskCategory,
+  RecommendationResult
 } from '../types';
 import { SAMPLE_PROMPTS } from '../data/models';
 import { estimateComplexity } from '../services/routerEngine';
+import { RecommendationInfoModal } from './RecommendationInfoModal';
 
 interface RecommendationStudioProps {
   prompt: string;
@@ -27,6 +30,7 @@ interface RecommendationStudioProps {
   setPreference: (pref: RoutingPreference) => void;
   onRecommend: () => void;
   isLoading: boolean;
+  result?: RecommendationResult | null;
 }
 
 export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
@@ -39,8 +43,10 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
   preference,
   setPreference,
   onRecommend,
-  isLoading
+  isLoading,
+  result
 }) => {
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState<boolean>(false);
   const complexity = estimateComplexity(prompt, category);
 
   const handleApplyPreset = (index: number) => {
@@ -82,15 +88,14 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
   ];
 
   return (
-    <div className="mr-card" style={{ marginBottom: '28px' }}>
-      {/* Studio Header */}
+    <div className="mr-card" style={{ marginBottom: '28px', position: 'relative' }}>
+      {/* Studio Header: Title on Left, Info ⓘ Button in Top Right Corner */}
       <div style={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px',
-        marginBottom: '20px'
+        gap: '16px',
+        marginBottom: '14px'
       }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -106,30 +111,65 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
           </p>
         </div>
 
-        {/* Quick Presets */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-            Presets:
-          </span>
-          {SAMPLE_PROMPTS.map((sample, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handleApplyPreset(idx)}
-              className="btn-ghost"
-              style={{
-                fontSize: '11px',
-                padding: '4px 9px',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--bg-pill)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-secondary)'
-              }}
-            >
-              {sample.title}
-            </button>
-          ))}
-        </div>
+        {/* Info ⓘ Button in Top Right Corner */}
+        <button
+          type="button"
+          onClick={() => setIsInfoModalOpen(true)}
+          title="How VeyraLabs Recommends a Model (Architecture & Math Pipeline)"
+          aria-label="How VeyraLabs Recommends a Model"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '34px',
+            height: '34px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(101, 60, 161, 0.15)',
+            border: '1.5px solid var(--accent-purple, #8A5CF6)',
+            color: 'var(--accent-purple, #AC91F1)',
+            cursor: 'pointer',
+            flexShrink: 0,
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 8px rgba(101, 60, 161, 0.2)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--accent-purple, #8A5CF6)';
+            e.currentTarget.style.color = '#FFFFFF';
+            e.currentTarget.style.transform = 'scale(1.08)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(101, 60, 161, 0.15)';
+            e.currentTarget.style.color = 'var(--accent-purple, #AC91F1)';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          <Info size={18} strokeWidth={2.4} />
+        </button>
+      </div>
+
+      {/* Quick Presets Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+          Presets:
+        </span>
+        {SAMPLE_PROMPTS.map((sample, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => handleApplyPreset(idx)}
+            className="btn-ghost"
+            style={{
+              fontSize: '11px',
+              padding: '4px 9px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--bg-pill)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-secondary)'
+            }}
+          >
+            {sample.title}
+          </button>
+        ))}
       </div>
 
       {/* Main Grid: Prompt Input on Left, Constraints on Right */}
@@ -447,6 +487,13 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
           )}
         </button>
       </div>
+
+      {/* How VeyraLabs Recommends a Model Modal */}
+      <RecommendationInfoModal
+        isOpen={isInfoModalOpen}
+        onClose={() => setIsInfoModalOpen(false)}
+        result={result}
+      />
     </div>
   );
 };

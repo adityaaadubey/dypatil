@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { 
   BookOpen, 
   Search, 
@@ -297,7 +298,7 @@ export const ModelRulebook: React.FC<ModelRulebookProps> = ({
       </div>
 
       {/* Model Profile Drawer / Modal */}
-      {selectedModel && (
+      {selectedModel && ReactDOM.createPortal(
         <div style={{
           position: 'fixed',
           top: 0,
@@ -309,7 +310,7 @@ export const ModelRulebook: React.FC<ModelRulebookProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 120,
+          zIndex: 9000,
           padding: '20px'
         }}>
           <div 
@@ -500,7 +501,8 @@ export const ModelRulebook: React.FC<ModelRulebookProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

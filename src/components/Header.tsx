@@ -74,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'explorer', label: 'Model Explorer', icon: Layers, badge: '656 Models' },
     { id: 'pricing', label: 'Pricing & Packages', icon: Coins },
     { id: 'methodology', label: 'Docs & Methodology', icon: ShieldCheck },
-    { id: 'leaderboard', label: 'Arena Leaderboards', icon: Trophy },
+    { id: 'leaderboard', label: 'Leaderboards', icon: Trophy },
     { id: 'comparison', label: 'Comparison Studio', icon: GitCompare },
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'rulebook', label: 'Model Rulebook', icon: BookOpen }
@@ -85,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'explorer', label: 'Model Explorer', icon: Layers, badge: '656 Models' },
     { id: 'comparison', label: 'Comparison Studio', icon: GitCompare },
     { id: 'pricing', label: 'Pricing & Packages', icon: Coins },
-    { id: 'leaderboard', label: 'Arena Leaderboards', icon: Trophy },
+    { id: 'leaderboard', label: 'Leaderboards', icon: Trophy },
     { id: 'history', label: 'History & Cache', icon: History },
     { id: 'methodology', label: 'Docs & Methodology', icon: ShieldCheck },
     ...(currentUser?.role === 'admin' ? [{ id: 'admin', label: 'Admin Console', icon: ShieldAlert, badge: 'Admin' }] : [])
