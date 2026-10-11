@@ -13,16 +13,32 @@ import {
   ChevronDown,
   RotateCcw,
   Zap,
-  Square
+  Square,
+  Award
 } from 'lucide-react';
 import type { Model, ChatMessage, InferenceResult } from '../types';
+import type { TrialAllowance } from '../types/billing';
 import { executeStreamingInference } from '../services/inferenceService';
+
+export interface TopRankedModel {
+  model: Model;
+  rank: 1 | 2 | 3;
+  rankLabel: string;
+  score: number;
+  creditsCost: number;
+  badgeClass: string;
+  latencyMs: number;
+  estimatedCost: number;
+}
 
 interface LiveInferenceChatProps {
   primaryModel: Model;
   initialPrompt: string;
-  failoverChain: Model[];
-  allEligibleModels: Model[];
+  failoverChain?: Model[];
+  allEligibleModels?: Model[];
+  topRankedModels?: TopRankedModel[];
+  trialAllowance?: TrialAllowance;
+  onTrialAllowanceUpdated?: (updated: TrialAllowance) => void;
 }
 
 // Filter out models that require agentic harnesses or are not standard chat completion models
@@ -34,8 +50,11 @@ const isUnsupportedChatModel = (id: string) => {
 export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
   primaryModel,
   initialPrompt,
-  failoverChain,
-  allEligibleModels
+  failoverChain = [],
+  allEligibleModels = [],
+  topRankedModels = [],
+  trialAllowance,
+  onTrialAllowanceUpdated
 }) => {
   // Mode: 'auto' (routing engine chooses) or 'manual' (user explicitly chose a model)
   const [mode, setMode] = useState<'auto' | 'manual'>('auto');
@@ -59,8 +78,11 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
     setIsLoading(false);
   };
 
-  // Clean eligible models list excluding unsupported models and duplicates
+  // Clean eligible models list strictly constrained to topRankedModels when present
   const cleanEligibleModels = useMemo(() => {
+    if (topRankedModels && topRankedModels.length > 0) {
+      return topRankedModels.map((t) => t.model);
+    }
     const map = new Map<string, Model>();
     if (!isUnsupportedChatModel(primaryModel.id)) {
       map.set(primaryModel.id, primaryModel);
@@ -75,8 +97,8 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
         map.set(m.id, m);
       }
     });
-    return Array.from(map.values());
-  }, [primaryModel, failoverChain, allEligibleModels]);
+    return Array.from(map.values()).slice(0, 3);
+  }, [topRankedModels, primaryModel, failoverChain, allEligibleModels]);
 
   // Clean failover chain excluding unsupported models
   const cleanFailovers = useMemo(() => {
@@ -92,10 +114,23 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
                       cleanEligibleModels.find((m) => m.id === effectiveTargetId) || 
                       primaryModel;
 
+  const activeTargetCredits = topRankedModels.find((t) => t.model.id === effectiveTargetId)?.creditsCost || 5;
+
   // Execute inference for a given prompt/message array with live token streaming
   const handleSend = async (textToSend: string, targetId = effectiveTargetId) => {
     const trimmed = textToSend.trim();
     if (!trimmed || isLoading) return;
+
+    // Deduct trial allowance / credits score based on target model's credit score
+    const targetModelCredits = topRankedModels.find((t) => t.model.id === targetId)?.creditsCost || 5;
+    const tokensToDeduct = targetModelCredits * 50; // 5 credits = 250 tokens
+    if (trialAllowance && onTrialAllowanceUpdated) {
+      onTrialAllowanceUpdated({
+        ...trialAllowance,
+        usedTrialTokens: trialAllowance.usedTrialTokens + tokensToDeduct,
+        remainingTrialTokens: Math.max(0, trialAllowance.remainingTrialTokens - tokensToDeduct)
+      });
+    }
 
     const newMessages: ChatMessage[] = [...messages, { role: 'user', content: trimmed }];
     // Append assistant placeholder for streaming
@@ -278,17 +313,23 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
                 maxWidth: '310px'
               }}
             >
-              <optgroup label="Auto-Routed (Recommendation Engine)">
+              <optgroup label="Auto-Routed (Top Recommendation)">
                 <option value="__AUTO__">
-                  ★ Auto: {primaryModel.name} ({primaryModel.id})
+                  ★ Rank #1 Auto: {primaryModel.name}
                 </option>
               </optgroup>
-              <optgroup label="Manual Override — Verified Free Endpoints">
-                {cleanEligibleModels.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.id === primaryModel.id ? '• (Primary) ' : '↳ '} {m.name} ({m.id})
-                  </option>
-                ))}
+              <optgroup label="Top 3 Accessible Models (Credits Score)">
+                {cleanEligibleModels.map((m) => {
+                  const rankObj = topRankedModels.find((t) => t.model.id === m.id);
+                  const label = rankObj 
+                    ? `${rankObj.rankLabel} • ${m.name} (${rankObj.creditsCost} Credits)` 
+                    : m.name;
+                  return (
+                    <option key={m.id} value={m.id}>
+                      {label}
+                    </option>
+                  );
+                })}
               </optgroup>
             </select>
             <ChevronDown 
@@ -299,6 +340,138 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Top 3 Interactive Model Selection Cards with Credits Score */}
+      {topRankedModels.length > 0 && (
+        <div style={{
+          padding: '16px 18px',
+          backgroundColor: 'var(--bg-card)',
+          borderBottom: '1px solid var(--border-subtle)'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '12px',
+            flexWrap: 'wrap',
+            gap: '8px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Award size={16} color="var(--accent-purple)" />
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Select Active Model (Top 3 Recommendations)
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                • Interactive Real Model Execution
+              </span>
+            </div>
+
+            {trialAllowance && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11px',
+                padding: '4px 10px',
+                backgroundColor: 'var(--bg-panel)',
+                borderRadius: 'var(--radius-full)',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <Coins size={13} color="var(--accent-mint)" />
+                <span style={{ color: 'var(--text-secondary)' }}>Credits Score Balance:</span>
+                <strong style={{ color: 'var(--accent-mint)' }}>
+                  {trialAllowance.remainingTrialTokens.toLocaleString()} tokens
+                </strong>
+                <span style={{ color: 'var(--text-muted)' }}>
+                  (~{Math.floor(trialAllowance.remainingTrialTokens / 250)} queries left)
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: '12px'
+          }}>
+            {topRankedModels.map((t) => {
+              const isSelected = activeModel.id === t.model.id;
+              const rankEmoji = t.rank === 1 ? '🥇' : t.rank === 2 ? '🥈' : '🥉';
+              const rankColor = t.rank === 1 ? 'var(--accent-amber)' : t.rank === 2 ? 'var(--accent-mint)' : 'var(--accent-purple)';
+              const borderHighlight = isSelected ? `2px solid ${rankColor}` : '1px solid var(--border-subtle)';
+              const bgHighlight = isSelected ? 'var(--bg-input)' : 'var(--bg-panel)';
+
+              return (
+                <div
+                  key={t.model.id}
+                  onClick={() => {
+                    setMode('manual');
+                    setManualModelId(t.model.id);
+                    setActualExecutedModelId(null);
+                    setErrorNotice(null);
+                  }}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: bgHighlight,
+                    border: borderHighlight,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '10px'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span className={`badge ${t.badgeClass}`} style={{ fontSize: '10px' }}>
+                        {rankEmoji} {t.rankLabel}
+                      </span>
+                      <span className="badge badge-mint" style={{ fontSize: '10px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <Coins size={10} />
+                        {t.creditsCost} Credits
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {t.model.name}
+                    </div>
+
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {t.model.provider} • {t.latencyMs}ms • ${t.estimatedCost.toFixed(5)}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingTop: '8px',
+                    borderTop: '1px solid var(--border-subtle)',
+                    marginTop: '4px'
+                  }}>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      Score: <strong style={{ color: rankColor }}>{(t.score || 95).toFixed(1)}/100</strong>
+                    </div>
+
+                    {isSelected ? (
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: rankColor, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Check size={12} /> Selected
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        Click to Select
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Quick Action: Run Initial Prompt Banner (if no messages sent yet) */}
       {messages.length === 0 && (
@@ -353,10 +526,10 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
               type="button"
               onClick={handleRunInitialPrompt}
               className="btn-primary"
-              style={{ fontSize: '12px', padding: '6px 14px' }}
+              style={{ fontSize: '12px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <Play size={13} />
-              <span>Execute on {activeModel.name.split(' ')[0]}</span>
+              <span>Execute on {activeModel.name.split(' ')[0]} ({activeTargetCredits} Credits)</span>
             </button>
           )}
         </div>
@@ -605,7 +778,7 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
           type="text"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
-          placeholder={messages.length === 0 ? `Ask a question or test prompt with ${activeModel.name.split(' ')[0]}...` : "Type follow-up message to continue conversation..."}
+          placeholder={messages.length === 0 ? `Ask a question or test prompt with ${activeModel.name.split(' ')[0]} (${activeTargetCredits} credits)...` : "Type follow-up message to continue conversation..."}
           disabled={isLoading}
           style={{
             flex: 1,
@@ -641,10 +814,10 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
             type="submit"
             disabled={!inputMessage.trim()}
             className="btn-primary"
-            style={{ padding: '8px 16px', fontSize: '12px' }}
+            style={{ padding: '8px 16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Send size={13} />
-            <span>Send</span>
+            <span>Send ({activeTargetCredits} cr)</span>
           </button>
         )}
       </form>

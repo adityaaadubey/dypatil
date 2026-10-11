@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { 
   X, 
   Cpu, 
@@ -35,6 +36,14 @@ export const ModelDetailModal: React.FC<ModelDetailModalProps> = ({
   const [calcInputTokens, setCalcInputTokens] = useState<number>(10000);
   const [calcOutputTokens, setCalcOutputTokens] = useState<number>(2000);
 
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !model) return null;
 
   // Compute hypothetical cost
@@ -43,33 +52,40 @@ export const ModelDetailModal: React.FC<ModelDetailModalProps> = ({
   const hypotheticalCostUSD = (calcInputTokens / 1e6) * inRate + (calcOutputTokens / 1e6) * outRate;
   const hypotheticalCostINR = hypotheticalCostUSD * 88.0;
 
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(5, 10, 24, 0.85)',
-      backdropFilter: 'blur(8px)',
-      zIndex: 140,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px'
-    }}>
-      <div style={{
-        backgroundColor: 'var(--bg-panel)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
-        width: '100%',
-        maxWidth: '820px',
-        maxHeight: '90vh',
+  // Use portal to escape the 3D card stacking context (perspective/preserve-3d breaks fixed positioning)
+  return ReactDOM.createPortal(
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(5, 10, 24, 0.85)',
+        backdropFilter: 'blur(8px)',
+        zIndex: 9000,
         display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 24px 60px rgba(0,0,0,0.6)',
-        overflow: 'hidden'
-      }}>
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px'
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: 'var(--bg-panel)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)',
+          width: '100%',
+          maxWidth: '820px',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.6)',
+          overflow: 'hidden'
+        }}
+      >
         {/* Header */}
         <div style={{
           padding: '20px 24px',
@@ -390,6 +406,7 @@ export const ModelDetailModal: React.FC<ModelDetailModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
