@@ -19,6 +19,11 @@ import { QrCheckoutModal } from './components/QrCheckoutModal';
 import { ModelExplorer } from './components/ModelExplorer';
 import { ModelComparisonStudio } from './components/ModelComparisonStudio';
 import { HistoryWorkspace } from './components/HistoryWorkspace';
+import { AuthModal } from './components/AuthModal';
+import { UserProfileModal } from './components/UserProfileModal';
+import { LiveExecutionModal } from './components/LiveExecutionModal';
+import { AdminDashboard } from './components/AdminDashboard';
+
 import { INITIAL_MODELS, SAMPLE_PROMPTS } from './data/models';
 import { INITIAL_ARENA_MODELS, calculateDataFreshness } from './services/dataService';
 import { routeRequest } from './services/routerEngine';
@@ -30,6 +35,7 @@ import {
   createPendingOrder, 
   getTrialAllowance 
 } from './services/billingService';
+import { authService, type User, type Wallet } from './services/authService';
 import { PRICING_PACKAGES } from './config/pricingPackages';
 import type { 
   Model, 
@@ -48,7 +54,7 @@ import type {
   TrialAllowance 
 } from './types/billing';
 import type { EnrichedModelCatalogItem } from './types/modelExplorer';
-import { Terminal, CheckCircle2 } from 'lucide-react';
+import { Terminal, CheckCircle2, Sparkles, ArrowRight } from 'lucide-react';
 
 export const App: React.FC = () => {
   // Theme state: dark (default) or light, persisted in local storage
@@ -61,8 +67,19 @@ export const App: React.FC = () => {
     return 'dark';
   });
 
+  // Active user and wallet session state
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+
   // Active top-level navigation tab
-  const [activeTab, setActiveTab] = useState<string>('overview');
+  // Default to 'explorer' for public guests, switches to 'recommendation' after login
+  const [activeTab, setActiveTab] = useState<string>('explorer');
+
+  // Modals for Authentication, Profile, and Live Inference
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+  const [isLiveExecModalOpen, setIsLiveExecModalOpen] = useState<boolean>(false);
 
   // Comprehensive Arena Models Catalogue (656 models)
   const [arenaModels] = useState<ArenaModel[]>(INITIAL_ARENA_MODELS);
@@ -117,6 +134,40 @@ export const App: React.FC = () => {
 
   // Telemetry Audit Logs
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+
+  // Check existing session on load
+  useEffect(() => {
+    authService.getSession().then((session) => {
+      if (session) {
+        setCurrentUser(session.user);
+        setWallet(session.wallet);
+        // Requirement: After login, recommendation portal is first!
+        setActiveTab('recommendation');
+      }
+    });
+  }, []);
+
+  const refreshSession = async () => {
+    const session = await authService.getSession();
+    if (session) {
+      setCurrentUser(session.user);
+      setWallet(session.wallet);
+    }
+  };
+
+  const handleAuthSuccess = (user: User, userWallet: Wallet) => {
+    setCurrentUser(user);
+    setWallet(userWallet);
+    // Explicit user requirement: "after login recommendation portal sabse phlaaaaaaaaaaaaaaaaaaa"
+    setActiveTab('recommendation');
+  };
+
+  const handleLogout = async () => {
+    await authService.logout();
+    setCurrentUser(null);
+    setWallet(null);
+    setActiveTab('explorer');
+  };
 
   // Apply theme attribute and persist
   useEffect(() => {
@@ -315,6 +366,15 @@ export const App: React.FC = () => {
         auditCount={auditLogs.length}
         onOpenCart={() => setIsCartOpen(true)}
         cartCount={cart.items.length}
+        currentUser={currentUser}
+        wallet={wallet}
+        onOpenAuth={(mode) => {
+          setAuthModalMode(mode);
+          setIsAuthModalOpen(true);
+        }}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenLiveExec={() => setIsLiveExecModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Sync Notice Alert */}
@@ -338,24 +398,22 @@ export const App: React.FC = () => {
       {/* Main Content Area */}
       <main style={{ flex: 1, padding: '32px 0 60px' }}>
         <div className="container">
-          {/* TAB 1: Overview Dashboard */}
-          {activeTab === 'overview' && (
-            <OverviewDashboard
-              models={arenaModels}
-              freshness={freshness}
-              onRefreshData={handleRefreshData}
-              onSelectCategory={(_cat) => { setActiveTab('leaderboard'); }}
-              onViewModelProfile={(m) => { setSelectedRulebookModel(m); setActiveTab('rulebook'); }}
-              onNavigateToTab={setActiveTab}
-            />
-          )}
-
           {/* TAB: Dedicated Model Explorer with 3D Flip Cards & Free/Paid Tabs */}
           {activeTab === 'explorer' && (
             <ModelExplorer
               catalog={enrichedCatalog}
               onSelectForCompare={handleSelectForCompare}
               onOpenTestPrompt={handleOpenTestPrompt}
+            />
+          )}
+
+          {/* TAB: Pricing & Token Packages */}
+          {activeTab === 'pricing' && (
+            <PricingPage
+              onConfigurePackage={handleConfigurePackage}
+              trialAllowance={trialAllowance}
+              onOpenCart={() => setIsCartOpen(true)}
+              cartItemCount={cart.items.length}
             />
           )}
 
@@ -374,17 +432,7 @@ export const App: React.FC = () => {
             <HistoryWorkspace />
           )}
 
-          {/* TAB: Pricing & Token Packages */}
-          {activeTab === 'pricing' && (
-            <PricingPage
-              onConfigurePackage={handleConfigurePackage}
-              trialAllowance={trialAllowance}
-              onOpenCart={() => setIsCartOpen(true)}
-              cartItemCount={cart.items.length}
-            />
-          )}
-
-          {/* TAB 2: Leaderboard Explorer */}
+          {/* TAB: Leaderboard Explorer */}
           {activeTab === 'leaderboard' && (
             <LeaderboardExplorer
               models={arenaModels}
@@ -395,7 +443,7 @@ export const App: React.FC = () => {
             />
           )}
 
-          {/* TAB 3: Interactive Analytics & Charts */}
+          {/* TAB: Interactive Analytics & Charts */}
           {activeTab === 'analytics' && (
             <AnalyticsCharts
               models={arenaModels}
@@ -403,7 +451,7 @@ export const App: React.FC = () => {
             />
           )}
 
-          {/* TAB 4: Model Rulebook */}
+          {/* TAB: Model Rulebook */}
           {activeTab === 'rulebook' && (
             <ModelRulebook
               models={arenaModels}
@@ -412,9 +460,79 @@ export const App: React.FC = () => {
             />
           )}
 
-          {/* TAB 5: Recommendation Studio (Preserved Gateway Portal) */}
+          {/* TAB: Methodology & Governance */}
+          {activeTab === 'methodology' && (
+            <MethodologyView />
+          )}
+
+          {/* TAB: Overview Dashboard */}
+          {activeTab === 'overview' && (
+            <OverviewDashboard
+              models={arenaModels}
+              freshness={freshness}
+              onRefreshData={handleRefreshData}
+              onSelectCategory={(_cat) => { setActiveTab('leaderboard'); }}
+              onViewModelProfile={(m) => { setSelectedRulebookModel(m); setActiveTab('rulebook'); }}
+              onNavigateToTab={setActiveTab}
+            />
+          )}
+
+          {/* TAB: Recommendation Studio (Preserved Gateway Portal) */}
           {activeTab === 'recommendation' && (
             <div className="animate-fade-in">
+              {/* If not authenticated, show welcoming gateway banner */}
+              {!currentUser && (
+                <div
+                  style={{
+                    backgroundColor: 'rgba(101, 60, 161, 0.15)',
+                    border: '1px solid rgba(172, 145, 241, 0.4)',
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Sparkles size={20} color="#AC91F1" />
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>
+                        Experience Live Model Inference & Mathematical Routing
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        Sign up in 5 seconds to unlock 10,000 free trial platform credits with zero credit card required.
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setAuthModalMode('signup');
+                      setIsAuthModalOpen(true);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'var(--accent-primary)',
+                      color: '#FFFFFF',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    Claim 10,000 Free Credits
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
+              )}
+
               <div style={{ marginBottom: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                   <span className="badge badge-purple">
@@ -475,9 +593,9 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 6: Methodology & Governance */}
-          {activeTab === 'methodology' && (
-            <MethodologyView />
+          {/* TAB: Administrator Console */}
+          {activeTab === 'admin' && currentUser?.role === 'admin' && (
+            <AdminDashboard />
           )}
         </div>
       </main>
@@ -577,6 +695,31 @@ export const App: React.FC = () => {
         isOpen={isQrModalOpen}
         onClose={() => setIsQrModalOpen(false)}
         order={pendingOrder}
+      />
+
+      {/* Auth Modal (Sign In / Sign Up) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+        initialMode={authModalMode}
+      />
+
+      {/* User Profile & Token Wallet Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUser}
+        onProfileUpdated={refreshSession}
+      />
+
+      {/* Live Inference Execution Modal (Calls Google Gemini Live API) */}
+      <LiveExecutionModal
+        isOpen={isLiveExecModalOpen}
+        onClose={() => setIsLiveExecModalOpen(false)}
+        defaultModelId={result?.selectedModel?.id || 'gemini-flash-latest'}
+        defaultPrompt={prompt}
+        onExecuted={refreshSession}
       />
     </div>
   );

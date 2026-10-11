@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   SlidersHorizontal, 
   History, 
@@ -6,17 +5,22 @@ import {
   Moon, 
   LayoutDashboard, 
   Trophy, 
-  BarChart3, 
   BookOpen, 
   Compass, 
-  ShieldCheck,
-  ShoppingBag,
-  Coins,
-  Layers,
-  GitCompare
+  ShieldCheck, 
+  ShoppingBag, 
+  Coins, 
+  Layers, 
+  GitCompare, 
+  Zap, 
+  LogOut, 
+  Sparkles, 
+  ShieldAlert, 
+  Play 
 } from 'lucide-react';
 import type { Model } from '../types';
 import type { DataFreshnessInfo } from '../types/arena';
+import type { User, Wallet } from '../services/authService';
 import { VeyraLabsLogo } from './VeyraLabsLogo';
 
 interface HeaderProps {
@@ -31,6 +35,13 @@ interface HeaderProps {
   auditCount: number;
   onOpenCart: () => void;
   cartCount: number;
+  // Auth & Profile Integration
+  currentUser: User | null;
+  wallet: Wallet | null;
+  onOpenAuth: (mode: 'login' | 'signup') => void;
+  onOpenProfile: () => void;
+  onOpenLiveExec: () => void;
+  onLogout: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -44,23 +55,43 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuditLog,
   auditCount,
   onOpenCart,
-  cartCount
+  cartCount,
+  currentUser,
+  wallet,
+  onOpenAuth,
+  onOpenProfile,
+  onOpenLiveExec,
+  onLogout
 }) => {
   const downCount = models.filter((m) => m.endpointStatus === 'down').length;
   const degradedCount = models.filter((m) => m.endpointStatus === 'degraded').length;
 
-  const navItems = [
+  // Navigation Items dynamic based on authentication state:
+  // User requirement:
+  // - Unauthenticated: Explore, Pricing, Docs, Arena, Compare, Analytics
+  // - Authenticated: Recommendation Portal FIRST ("sabse phlaaaaaaaaaaaaaaaaaaa"), followed by Explorer, Compare, Pricing, Leaderboards, History, Docs, Admin
+  const publicNavItems = [
+    { id: 'explorer', label: 'Model Explorer', icon: Layers, badge: '656 Models' },
+    { id: 'pricing', label: 'Pricing & Packages', icon: Coins },
+    { id: 'methodology', label: 'Docs & Methodology', icon: ShieldCheck },
+    { id: 'leaderboard', label: 'Arena Leaderboards', icon: Trophy },
+    { id: 'comparison', label: 'Comparison Studio', icon: GitCompare },
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'explorer', label: 'Model Explorer', icon: Layers },
+    { id: 'rulebook', label: 'Model Rulebook', icon: BookOpen }
+  ];
+
+  const authenticatedNavItems = [
+    { id: 'recommendation', label: 'Recommendation Portal', icon: Compass, badge: 'SLA Gateway' },
+    { id: 'explorer', label: 'Model Explorer', icon: Layers, badge: '656 Models' },
     { id: 'comparison', label: 'Comparison Studio', icon: GitCompare },
     { id: 'pricing', label: 'Pricing & Packages', icon: Coins },
-    { id: 'leaderboard', label: 'Leaderboards', icon: Trophy },
-    { id: 'analytics', label: 'Analytics & Charts', icon: BarChart3 },
-    { id: 'rulebook', label: 'Model Rulebook', icon: BookOpen },
-    { id: 'recommendation', label: 'Recommendation Studio', icon: Compass },
+    { id: 'leaderboard', label: 'Arena Leaderboards', icon: Trophy },
     { id: 'history', label: 'History & Cache', icon: History },
-    { id: 'methodology', label: 'Methodology', icon: ShieldCheck }
+    { id: 'methodology', label: 'Docs & Methodology', icon: ShieldCheck },
+    ...(currentUser?.role === 'admin' ? [{ id: 'admin', label: 'Admin Console', icon: ShieldAlert, badge: 'Admin' }] : [])
   ];
+
+  const navItems = currentUser ? authenticatedNavItems : publicNavItems;
 
   return (
     <header style={{
@@ -76,24 +107,24 @@ export const Header: React.FC<HeaderProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        height: '62px',
-        gap: '16px'
+        height: '64px',
+        gap: '12px'
       }}>
         {/* Brand / Logo */}
         <div 
           style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} 
-          onClick={() => onSelectTab('overview')}
+          onClick={() => onSelectTab(currentUser ? 'recommendation' : 'explorer')}
           title="veyralabs homepage"
         >
-          <VeyraLabsLogo size={32} showText={true} />
+          <VeyraLabsLogo size={34} showText={true} />
           <span className="badge badge-purple" style={{ fontSize: '9px', padding: '1px 6px', textTransform: 'uppercase' }}>
             AI GATEWAY
           </span>
         </div>
 
         {/* Global Toolbar / Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Freshness / Live Sync Pill */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Live Sync Pill */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -114,6 +145,28 @@ export const Header: React.FC<HeaderProps> = ({
             }} />
             <span>{freshness.totalRecords} Models Live</span>
           </div>
+
+          {/* Live Execution Trigger Button */}
+          <button
+            onClick={onOpenLiveExec}
+            style={{
+              padding: '6px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              borderRadius: '8px',
+              border: '1px solid rgba(172, 145, 241, 0.4)',
+              backgroundColor: 'rgba(101, 60, 161, 0.2)',
+              color: 'var(--accent-secondary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Execute live inference prompt with Google Gemini API"
+          >
+            <Play size={13} fill="currentColor" />
+            <span>Live Prompt API</span>
+          </button>
 
           {/* Judge Simulator Trigger */}
           <button
@@ -185,6 +238,108 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
+          {/* Authentication & Profile Section */}
+          {currentUser ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {/* Token Wallet Credit Badge */}
+              <button
+                onClick={onOpenProfile}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(172, 145, 241, 0.4)',
+                  backgroundColor: 'rgba(101, 60, 161, 0.2)',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+                title="Open Token Wallet & Usage Ledger"
+              >
+                <Zap size={14} color="#AC91F1" />
+                <span>{(wallet?.availableTrialCredits || 0).toLocaleString()} Credits</span>
+              </button>
+
+              {/* User Avatar / Profile Button */}
+              <button
+                onClick={onOpenProfile}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 10px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+                title="Open user profile settings"
+              >
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--accent-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#FFFFFF',
+                  fontSize: '11px',
+                  fontWeight: 700
+                }}>
+                  {currentUser.name.charAt(0).toUpperCase()}
+                </div>
+                <span>{currentUser.name.split(' ')[0]}</span>
+              </button>
+
+              {/* Logout Button */}
+              <button
+                onClick={onLogout}
+                className="btn-secondary"
+                style={{ padding: '6px 10px', color: '#F87171' }}
+                title="Log out"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                onClick={() => onOpenAuth('login')}
+                className="btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 600 }}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => onOpenAuth('signup')}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, var(--accent-primary) 0%, #041258 100%)',
+                  color: '#FFFFFF',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 10px rgba(101, 60, 161, 0.4)'
+                }}
+              >
+                <Sparkles size={13} />
+                Get 10k Credits
+              </button>
+            </div>
+          )}
+
           {/* Theme Toggle */}
           <button
             onClick={onToggleTheme}
@@ -236,19 +391,9 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Icon size={14} color={isActive ? 'var(--accent-purple)' : 'var(--text-muted)'} />
                 <span>{item.label}</span>
-                {item.id === 'explorer' && (
-                  <span className="badge badge-mint" style={{ fontSize: '9px', padding: '1px 5px' }}>
-                    Flip Cards
-                  </span>
-                )}
-                {item.id === 'comparison' && (
-                  <span className="badge badge-purple" style={{ fontSize: '9px', padding: '1px 5px' }}>
-                    2-Model
-                  </span>
-                )}
-                {item.id === 'recommendation' && (
-                  <span className="badge badge-purple" style={{ fontSize: '9px', padding: '1px 5px' }}>
-                    SLA Gateway
+                {item.badge && (
+                  <span className={item.id === 'recommendation' ? 'badge badge-purple' : 'badge badge-mint'} style={{ fontSize: '9px', padding: '1px 5px' }}>
+                    {item.badge}
                   </span>
                 )}
               </button>
