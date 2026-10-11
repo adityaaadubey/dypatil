@@ -19,6 +19,7 @@ import type { RecommendationResult, Model } from '../types';
 import type { TrialAllowance } from '../types/billing';
 import { TrialPromptRunnerModal } from './TrialPromptRunnerModal';
 import { MathExplainerModal } from './MathExplainerModal';
+import { LiveInferenceChat } from './LiveInferenceChat';
 
 interface RecommendationCardProps {
   result: RecommendationResult;
@@ -673,6 +674,16 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
               );
             })()}
           </div>
+        </div>
+
+        {/* Live Model Inference & Interactive SSE Streaming Chat Playground */}
+        <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid var(--border-subtle)' }}>
+          <LiveInferenceChat
+            primaryModel={selectedModel}
+            initialPrompt={result.prompt}
+            failoverChain={result.failoverChain}
+            allEligibleModels={result.candidates.filter((c) => c.status === 'selected' || c.status === 'eligible').map((c) => c.model)}
+          />
         </div>
       </div>
 

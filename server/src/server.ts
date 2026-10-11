@@ -11,6 +11,7 @@ import usageRouter from './routes/usage.ts';
 import executeRouter from './routes/execute.ts';
 import modelsRouter from './routes/models.ts';
 import adminRouter from './routes/admin.ts';
+import chatRouter from './routes/chat.ts';
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use('/api/usage', usageRouter);
 app.use('/api/execute', executeRouter);
 app.use('/api/models', modelsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api', chatRouter);
 
 // Health Check
 app.get('/api/health', (_req, res) => {

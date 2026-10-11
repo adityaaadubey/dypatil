@@ -5,9 +5,43 @@ export type Provider =
   | 'Meta'
   | 'Mistral'
   | 'DeepSeek'
-  | 'Cohere';
+  | 'Cohere'
+  | 'NVIDIA'
+  | 'Poolside'
+  | 'LiquidAI'
+  | 'Thinking Machines'
+  | 'OpenRouter'
+  | (string & {});
 
 export type EndpointStatus = 'online' | 'degraded' | 'down';
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface InferenceUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+export interface InferenceResult {
+  content: string;
+  model: string;
+  requestedModel?: string;
+  failedModel?: string;
+  failedPrimaryModel?: string;
+  usage?: InferenceUsage;
+  latencyMs: number;
+  ttftMs?: number;
+  costUsd: number;
+  timestamp: string;
+  failoverUsed?: boolean;
+  attemptedModels?: string[];
+  error?: string;
+  mode?: 'auto' | 'manual';
+}
 
 export type ModelCategory = 
   | 'general'
