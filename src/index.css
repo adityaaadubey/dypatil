@@ -1,0 +1,333 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Dark Theme (Default) */
+  --bg-page: #0B1020;
+  --bg-panel: #111B30;
+  --bg-card: #141F38;
+  --bg-card-hover: #192745;
+  --bg-card-selected: #102436;
+  --bg-pill: #1B2947;
+  --bg-pill-hover: #24365C;
+  --bg-input: #0E162A;
+  --bg-input-focus: #131E38;
+  --bg-code: #090E1A;
+
+  /* Borders */
+  --border-subtle: #23324B;
+  --border-focus: #3A4F73;
+  --border-accent: rgba(145, 132, 255, 0.4);
+  --border-accent-strong: #9184FF;
+  --border-success: #35D6A5;
+  --border-success-subtle: rgba(53, 214, 165, 0.35);
+  --border-danger: rgba(239, 68, 68, 0.4);
+
+  /* Brand Accents */
+  --accent-purple: #9184FF;
+  --accent-purple-hover: #A599FF;
+  --accent-purple-dim: rgba(145, 132, 255, 0.12);
+  --accent-purple-glow: rgba(145, 132, 255, 0.25);
+
+  --accent-mint: #35D6A5;
+  --accent-mint-hover: #48E5B5;
+  --accent-mint-dim: rgba(53, 214, 165, 0.12);
+  --accent-mint-glow: rgba(53, 214, 165, 0.2);
+
+  --accent-amber: #F59E0B;
+  --accent-amber-dim: rgba(245, 158, 11, 0.12);
+
+  --accent-danger: #EF4444;
+  --accent-danger-dim: rgba(239, 68, 68, 0.12);
+
+  /* Typography */
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --text-accent: #B8B0FF;
+
+  /* Recommended model special card */
+  --bg-recommended: #151838;
+  --border-recommended: rgba(145, 132, 255, 0.5);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px -1px rgba(0, 0, 0, 0.4), 0 2px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.5), 0 4px 10px -2px rgba(0, 0, 0, 0.4);
+  --shadow-purple-glow: 0 0 24px rgba(145, 132, 255, 0.18);
+  --shadow-mint-glow: 0 0 20px rgba(53, 214, 165, 0.15);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+
+  /* Font Families */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+}
+
+[data-theme='light'] {
+  --bg-page: #F4F6FB;
+  --bg-panel: #FFFFFF;
+  --bg-card: #F8FAFD;
+  --bg-card-hover: #EFF3F9;
+  --bg-card-selected: #F0FBF7;
+  --bg-pill: #E9EEF6;
+  --bg-pill-hover: #DEE4F0;
+  --bg-input: #FFFFFF;
+  --bg-input-focus: #FFFFFF;
+  --bg-code: #ECEFF5;
+
+  --border-subtle: #D8DFED;
+  --border-focus: #BAC6DE;
+  --border-accent: rgba(120, 104, 230, 0.45);
+  --border-accent-strong: #7868E6;
+  --border-success: #1FB384;
+  --border-success-subtle: rgba(31, 179, 132, 0.35);
+  --border-danger: rgba(239, 68, 68, 0.35);
+
+  --accent-purple: #7868E6;
+  --accent-purple-hover: #6756D6;
+  --accent-purple-dim: rgba(120, 104, 230, 0.1);
+  --accent-purple-glow: rgba(120, 104, 230, 0.15);
+
+  --accent-mint: #1FB384;
+  --accent-mint-hover: #18966E;
+  --accent-mint-dim: rgba(31, 179, 132, 0.1);
+  --accent-mint-glow: rgba(31, 179, 132, 0.15);
+
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  --text-accent: #6756D6;
+
+  --bg-recommended: #F5F4FF;
+  --border-recommended: rgba(120, 104, 230, 0.5);
+
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px -1px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.1);
+  --shadow-purple-glow: 0 0 20px rgba(120, 104, 230, 0.12);
+  --shadow-mint-glow: 0 0 18px rgba(31, 179, 132, 0.12);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  min-height: 100%;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-page);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-focus);
+}
+
+/* Transitions */
+button, input, select, textarea, a {
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Base Utility Classes */
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Layout Container */
+.container {
+  width: 100%;
+  max-width: 1180px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+/* Common Card */
+.mr-card {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 24px;
+  position: relative;
+}
+
+@media (max-width: 640px) {
+  .mr-card {
+    padding: 18px;
+    border-radius: var(--radius-md);
+  }
+}
+
+/* Pill Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border-radius: var(--radius-full);
+  line-height: 1.3;
+}
+
+.badge-purple {
+  background-color: var(--accent-purple-dim);
+  color: var(--accent-purple);
+  border: 1px solid var(--border-accent);
+}
+
+.badge-mint {
+  background-color: var(--accent-mint-dim);
+  color: var(--accent-mint);
+  border: 1px solid var(--border-success-subtle);
+}
+
+.badge-amber {
+  background-color: var(--accent-amber-dim);
+  color: var(--accent-amber);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-danger {
+  background-color: var(--accent-danger-dim);
+  color: var(--accent-danger);
+  border: 1px solid var(--border-danger);
+}
+
+.badge-subtle {
+  background-color: var(--bg-pill);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Primary Button */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--accent-purple) 0%, #7663F2 100%);
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 10px var(--accent-purple-glow);
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--accent-purple-hover) 0%, #8774F8 100%);
+  box-shadow: 0 4px 18px var(--accent-purple-glow);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+/* Secondary Button */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: var(--bg-pill);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-pill-hover);
+  border-color: var(--border-focus);
+}
+
+/* Subtle Link Button */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-ghost:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-pill);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.28s ease-out forwards;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0.4; }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2.5s infinite ease-in-out;
+}
