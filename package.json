@@ -7,7 +7,8 @@
     "dev": "vite",
     "server": "tsx server/src/server.ts",
     "db:seed": "tsx database/seeds/seed_data.ts",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node build-api.mjs",
+    "build:api": "node build-api.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },
