@@ -187,7 +187,7 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
     ];
   }, [models]);
 
-  const COLORS = ['#9184FF', '#35D6A5', '#F59E0B', '#38BDF8', '#F43F5E', '#A855F7', '#EC4899'];
+  const COLORS = ['#653CA1', '#AC91F1', '#35D6A5', '#F59E0B', '#06B6D4', '#E879F9'];
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -269,11 +269,11 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
           <div style={{ height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={scoreBarData} margin={{ top: 10, right: 10, left: -10, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#23324B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider-color)" />
                 <XAxis dataKey="name" angle={-35} textAnchor="end" stroke="#64748B" fontSize={11} />
                 <YAxis domain={['auto', 'auto']} stroke="#64748B" fontSize={11} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111B30', borderColor: '#23324B', borderRadius: '8px', color: '#F8FAFC' }}
+                  contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   formatter={(val: any) => [`${val} Elo`, 'Rating']}
                   labelFormatter={(name) => `Model: ${name}`}
                 />
@@ -300,12 +300,12 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
           <div style={{ height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: -10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#23324B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider-color)" />
                 <XAxis dataKey="price" name="Price ($/1M in)" unit="$" stroke="#64748B" fontSize={11} />
                 <YAxis dataKey="rating" name="Rating" stroke="#64748B" fontSize={11} domain={['auto', 'auto']} />
                 <ZAxis dataKey="votes" range={[50, 400]} name="Votes" />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111B30', borderColor: '#23324B', borderRadius: '8px', color: '#F8FAFC' }}
+                  contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   cursor={{ strokeDasharray: '3 3' }}
                 />
                 <Scatter name="Models" data={scatterData} fill="#35D6A5" />
@@ -327,11 +327,11 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
           <div style={{ height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={paretoData} margin={{ top: 10, right: 20, bottom: 35, left: -10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#23324B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider-color)" />
                 <XAxis dataKey="name" angle={-30} textAnchor="end" stroke="#64748B" fontSize={10} />
                 <YAxis stroke="#64748B" fontSize={11} domain={['auto', 'auto']} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111B30', borderColor: '#23324B', borderRadius: '8px', color: '#F8FAFC' }}
+                  contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   formatter={(val: any) => [`${val} Elo`, 'Frontier Rating']}
                 />
                 <Line type="monotone" dataKey="rating" stroke="#35D6A5" strokeWidth={2.5} dot={{ r: 5, fill: '#35D6A5' }} />
@@ -353,11 +353,11 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
           <div style={{ height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={contextPriceData.slice(0, 10)} margin={{ top: 10, right: 10, left: -10, bottom: 35 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#23324B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider-color)" />
                 <XAxis dataKey="name" angle={-30} textAnchor="end" stroke="#64748B" fontSize={10} />
                 <YAxis stroke="#64748B" fontSize={11} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111B30', borderColor: '#23324B', borderRadius: '8px', color: '#F8FAFC' }}
+                  contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
                 />
                 <Legend />
                 <Bar dataKey="contextK" name="Context (K tokens)" fill="#38BDF8" radius={[4, 4, 0, 0]} />
@@ -380,11 +380,11 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
           <div style={{ height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={historicalData} margin={{ top: 10, right: 20, bottom: 10, left: -10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#23324B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider-color)" />
                 <XAxis dataKey="date" stroke="#64748B" fontSize={11} />
                 <YAxis domain={['auto', 'auto']} stroke="#64748B" fontSize={11} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111B30', borderColor: '#23324B', borderRadius: '8px', color: '#F8FAFC' }}
+                  contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
                 />
                 <Legend />
                 {HISTORICAL_SNAPSHOTS.slice(0, 4).map((rec, idx) => (
@@ -415,11 +415,11 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
           <div style={{ height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={rankMovementData} margin={{ top: 10, right: 10, left: -10, bottom: 35 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#23324B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider-color)" />
                 <XAxis dataKey="name" angle={-30} textAnchor="end" stroke="#64748B" fontSize={10} />
                 <YAxis stroke="#64748B" fontSize={11} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111B30', borderColor: '#23324B', borderRadius: '8px', color: '#F8FAFC' }}
+                  contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   formatter={(val: any) => [`${val > 0 ? `+${val}` : val} positions`, 'Movement']}
                 />
                 <Bar dataKey="change" fill="#35D6A5" radius={[4, 4, 0, 0]}>
@@ -445,11 +445,11 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
           <div style={{ height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={providerDistribution} layout="vertical" margin={{ top: 10, right: 20, left: 40, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#23324B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider-color)" />
                 <XAxis type="number" stroke="#64748B" fontSize={11} />
                 <YAxis type="category" dataKey="name" stroke="#64748B" fontSize={11} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111B30', borderColor: '#23324B', borderRadius: '8px', color: '#F8FAFC' }}
+                  contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
                 />
                 <Bar dataKey="count" fill="#9184FF" radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -470,11 +470,11 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
           <div style={{ height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={uncertaintyData} margin={{ top: 10, right: 10, left: -10, bottom: 35 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#23324B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider-color)" />
                 <XAxis dataKey="name" angle={-30} textAnchor="end" stroke="#64748B" fontSize={10} />
                 <YAxis stroke="#64748B" fontSize={11} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111B30', borderColor: '#23324B', borderRadius: '8px', color: '#F8FAFC' }}
+                  contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   formatter={(val: any) => [`±${val} Elo`, 'Uncertainty Interval']}
                 />
                 <Bar dataKey="uncertainty" fill="#F59E0B" radius={[4, 4, 0, 0]} />
@@ -496,11 +496,11 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
           <div style={{ height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={licenseBreakdown} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#23324B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider-color)" />
                 <XAxis dataKey="name" stroke="#64748B" fontSize={12} />
                 <YAxis domain={['auto', 'auto']} stroke="#64748B" fontSize={11} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111B30', borderColor: '#23324B', borderRadius: '8px', color: '#F8FAFC' }}
+                  contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   formatter={(val: any) => [`${val} Elo`, 'Mean Elo Rating']}
                 />
                 <Bar dataKey="avgElo" fill="#35D6A5" radius={[4, 4, 0, 0]}>
@@ -525,11 +525,11 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
           <div style={{ height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dataQualityData} layout="vertical" margin={{ top: 10, right: 20, left: 50, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#23324B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider-color)" />
                 <XAxis type="number" stroke="#64748B" fontSize={11} domain={[0, models.length]} />
                 <YAxis type="category" dataKey="metric" stroke="#64748B" fontSize={11} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111B30', borderColor: '#23324B', borderRadius: '8px', color: '#F8FAFC' }}
+                  contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   formatter={(val: any) => [`${val} of ${models.length} (${((val / models.length) * 100).toFixed(0)}%)`, 'Coverage']}
                 />
                 <Bar dataKey="count" fill="#38BDF8" radius={[0, 4, 4, 0]} />

@@ -1,116 +1,216 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-:root {
-  /* Dark Theme (Default) */
-  --bg-page: #0B1020;
-  --bg-panel: #111B30;
-  --bg-card: #141F38;
-  --bg-card-hover: #192745;
-  --bg-card-selected: #102436;
-  --bg-pill: #1B2947;
-  --bg-pill-hover: #24365C;
-  --bg-input: #0E162A;
-  --bg-input-focus: #131E38;
-  --bg-code: #090E1A;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
 
-  /* Borders */
-  --border-subtle: #23324B;
-  --border-focus: #3A4F73;
-  --border-accent: rgba(145, 132, 255, 0.4);
-  --border-accent-strong: #9184FF;
-  --border-success: #35D6A5;
-  --border-success-subtle: rgba(53, 214, 165, 0.35);
+/* ==========================================================================
+   VEYRALABS — MASTER COLOR SYSTEM (LIGHT & DARK THEMES)
+   Brand Palette:
+   - Midnight Navy: #020731
+   - Deep Indigo:   #041258
+   - Vibrant Purple: #653CA1
+   - Pastel Lavender: #AC91F1
+   - Lavender Mist: #F1EBFE
+   ========================================================================== */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Official Prompt Tokens */
+  --bg-primary: #020731;
+  --bg-secondary: #041258;
+  --bg-tertiary: rgba(4, 18, 88, 0.6);
+  --bg-elevated: #041258;
+
+  --text-primary: #F1EBFE;
+  --text-secondary: #AC91F1;
+  --text-muted: #AC91F1;
+
+  --accent-primary: #AC91F1;
+  --accent-secondary: #653CA1;
+  --accent-hover: #F1EBFE;
+
+  --border-color: rgba(172, 145, 241, 0.2);
+  --divider-color: rgba(172, 145, 241, 0.2);
+
+  --input-bg: #041258;
+  --input-text: #F1EBFE;
+
+  --hero-gradient: linear-gradient(
+    45deg,
+    #020731,
+    #041258,
+    #653CA1
+  );
+
+  --brand-gradient: linear-gradient(
+    45deg,
+    #020731,
+    #041258,
+    #653CA1,
+    #AC91F1,
+    #F1EBFE
+  );
+
+  --shadow-color: rgba(0, 0, 0, 0.25);
+
+  /* Semantic UI State Tokens */
+  --state-success: #10B981;
+  --state-success-dim: rgba(16, 185, 129, 0.15);
+  --state-warning: #F59E0B;
+  --state-warning-dim: rgba(245, 158, 11, 0.15);
+  --state-danger: #EF4444;
+  --state-danger-dim: rgba(239, 68, 68, 0.15);
+  --state-cyan: #06B6D4;
+  --state-cyan-dim: rgba(6, 182, 212, 0.15);
+
+  /* Unified Layout Mapping */
+  --bg-page: var(--bg-primary);
+  --bg-panel: var(--bg-secondary);
+  --bg-card: var(--bg-elevated);
+  --bg-card-hover: rgba(101, 60, 161, 0.35);
+  --bg-card-selected: rgba(172, 145, 241, 0.18);
+  --bg-pill: rgba(172, 145, 241, 0.12);
+  --bg-pill-hover: rgba(172, 145, 241, 0.22);
+  --bg-input-focus: #07196D;
+  --bg-code: #020728;
+  --bg-recommended: #051666;
+
+  --border-subtle: var(--border-color);
+  --border-focus: var(--accent-primary);
+  --border-accent: rgba(172, 145, 241, 0.4);
+  --border-accent-strong: #AC91F1;
+  --border-success: #10B981;
+  --border-success-subtle: rgba(16, 185, 129, 0.35);
   --border-danger: rgba(239, 68, 68, 0.4);
+  --border-recommended: #AC91F1;
 
-  /* Brand Accents */
-  --accent-purple: #9184FF;
-  --accent-purple-hover: #A599FF;
-  --accent-purple-dim: rgba(145, 132, 255, 0.12);
-  --accent-purple-glow: rgba(145, 132, 255, 0.25);
+  --accent-purple: var(--accent-primary);
+  --accent-purple-hover: #C5B0F7;
+  --accent-purple-dim: rgba(172, 145, 241, 0.15);
+  --accent-purple-glow: rgba(172, 145, 241, 0.28);
 
   --accent-mint: #35D6A5;
   --accent-mint-hover: #48E5B5;
-  --accent-mint-dim: rgba(53, 214, 165, 0.12);
-  --accent-mint-glow: rgba(53, 214, 165, 0.2);
+  --accent-mint-dim: rgba(53, 214, 165, 0.15);
+  --accent-mint-glow: rgba(53, 214, 165, 0.25);
 
   --accent-amber: #F59E0B;
-  --accent-amber-dim: rgba(245, 158, 11, 0.12);
-
+  --accent-amber-dim: rgba(245, 158, 11, 0.15);
   --accent-danger: #EF4444;
-  --accent-danger-dim: rgba(239, 68, 68, 0.12);
+  --accent-danger-dim: rgba(239, 68, 68, 0.15);
 
-  /* Typography */
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  --text-accent: #B8B0FF;
+  --text-accent: #AC91F1;
 
-  /* Recommended model special card */
-  --bg-recommended: #151838;
-  --border-recommended: rgba(145, 132, 255, 0.5);
-
-  /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px -1px rgba(0, 0, 0, 0.4), 0 2px 6px -1px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.5), 0 4px 10px -2px rgba(0, 0, 0, 0.4);
-  --shadow-purple-glow: 0 0 24px rgba(145, 132, 255, 0.18);
+  --shadow-md: 0 4px 14px -1px var(--shadow-color);
+  --shadow-lg: 0 12px 30px -3px var(--shadow-color);
+  --shadow-purple-glow: 0 0 24px rgba(172, 145, 241, 0.2);
   --shadow-mint-glow: 0 0 20px rgba(53, 214, 165, 0.15);
 
-  /* Radii */
   --radius-sm: 6px;
   --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 9999px;
 
-  /* Font Families */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
 }
 
-[data-theme='light'] {
-  --bg-page: #F4F6FB;
-  --bg-panel: #FFFFFF;
-  --bg-card: #F8FAFD;
-  --bg-card-hover: #EFF3F9;
-  --bg-card-selected: #F0FBF7;
-  --bg-pill: #E9EEF6;
-  --bg-pill-hover: #DEE4F0;
-  --bg-input: #FFFFFF;
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Official Prompt Tokens */
+  --bg-primary: #F1EBFE;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #FFFFFF;
+  --bg-elevated: #FFFFFF;
+
+  --text-primary: #020731;
+  --text-secondary: #041258;
+  --text-muted: #041258;
+
+  --accent-primary: #653CA1;
+  --accent-secondary: #AC91F1;
+  --accent-hover: #041258;
+
+  --border-color: rgba(101, 60, 161, 0.15);
+  --divider-color: rgba(101, 60, 161, 0.15);
+
+  --input-bg: #FFFFFF;
+  --input-text: #020731;
+
+  --hero-gradient: linear-gradient(
+    45deg,
+    #AC91F1,
+    #F1EBFE
+  );
+
+  --brand-gradient: linear-gradient(
+    45deg,
+    #020731,
+    #041258,
+    #653CA1,
+    #AC91F1,
+    #F1EBFE
+  );
+
+  --shadow-color: rgba(2, 7, 49, 0.08);
+
+  /* Semantic UI State Tokens */
+  --state-success: #059669;
+  --state-success-dim: rgba(5, 150, 105, 0.12);
+  --state-warning: #D97706;
+  --state-warning-dim: rgba(217, 119, 6, 0.12);
+  --state-danger: #DC2626;
+  --state-danger-dim: rgba(220, 38, 38, 0.12);
+  --state-cyan: #0891B2;
+  --state-cyan-dim: rgba(8, 145, 178, 0.12);
+
+  /* Unified Layout Mapping */
+  --bg-page: var(--bg-primary);
+  --bg-panel: var(--bg-secondary);
+  --bg-card: var(--bg-elevated);
+  --bg-card-hover: #F8F5FF;
+  --bg-card-selected: #F3EEFE;
+  --bg-pill: rgba(101, 60, 161, 0.08);
+  --bg-pill-hover: rgba(101, 60, 161, 0.14);
   --bg-input-focus: #FFFFFF;
-  --bg-code: #ECEFF5;
+  --bg-code: #ECE5FC;
+  --bg-recommended: #FFFFFF;
 
-  --border-subtle: #D8DFED;
-  --border-focus: #BAC6DE;
-  --border-accent: rgba(120, 104, 230, 0.45);
-  --border-accent-strong: #7868E6;
-  --border-success: #1FB384;
-  --border-success-subtle: rgba(31, 179, 132, 0.35);
-  --border-danger: rgba(239, 68, 68, 0.35);
+  --border-subtle: var(--border-color);
+  --border-focus: var(--accent-primary);
+  --border-accent: rgba(101, 60, 161, 0.3);
+  --border-accent-strong: #653CA1;
+  --border-success: #059669;
+  --border-success-subtle: rgba(5, 150, 105, 0.3);
+  --border-danger: rgba(220, 38, 38, 0.35);
+  --border-recommended: #653CA1;
 
-  --accent-purple: #7868E6;
-  --accent-purple-hover: #6756D6;
-  --accent-purple-dim: rgba(120, 104, 230, 0.1);
-  --accent-purple-glow: rgba(120, 104, 230, 0.15);
+  --accent-purple: var(--accent-primary);
+  --accent-purple-hover: #502E82;
+  --accent-purple-dim: rgba(101, 60, 161, 0.1);
+  --accent-purple-glow: rgba(101, 60, 161, 0.18);
 
-  --accent-mint: #1FB384;
-  --accent-mint-hover: #18966E;
-  --accent-mint-dim: rgba(31, 179, 132, 0.1);
-  --accent-mint-glow: rgba(31, 179, 132, 0.15);
+  --accent-mint: #059669;
+  --accent-mint-hover: #047857;
+  --accent-mint-dim: rgba(5, 150, 105, 0.12);
+  --accent-mint-glow: rgba(5, 150, 105, 0.18);
 
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-muted: #64748B;
-  --text-accent: #6756D6;
+  --accent-amber: #D97706;
+  --accent-amber-dim: rgba(217, 119, 6, 0.12);
+  --accent-danger: #DC2626;
+  --accent-danger-dim: rgba(220, 38, 38, 0.12);
 
-  --bg-recommended: #F5F4FF;
-  --border-recommended: rgba(120, 104, 230, 0.5);
+  --text-accent: #653CA1;
 
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 12px -1px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.1);
-  --shadow-purple-glow: 0 0 20px rgba(120, 104, 230, 0.12);
-  --shadow-mint-glow: 0 0 18px rgba(31, 179, 132, 0.12);
+  --shadow-sm: 0 1px 3px 0 rgba(2, 7, 49, 0.05);
+  --shadow-md: 0 4px 14px -1px var(--shadow-color);
+  --shadow-lg: 0 12px 28px -3px var(--shadow-color);
+  --shadow-purple-glow: 0 0 20px rgba(101, 60, 161, 0.12);
+  --shadow-mint-glow: 0 0 18px rgba(5, 150, 105, 0.12);
 }
 
 *, *::before, *::after {
@@ -330,4 +430,26 @@ button, input, select, textarea, a {
 
 .animate-pulse-glow {
   animation: pulseGlow 2.5s infinite ease-in-out;
+}
+
+/* 3D Flippable Trading Card Styles */
+.flippable-card-container {
+  transform: translateZ(0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.flippable-card-container:hover {
+  transform: translateY(-3px);
+}
+
+.flippable-card-container:focus-visible {
+  outline: 2px solid var(--accent-purple);
+  outline-offset: 4px;
+  border-radius: var(--radius-lg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flippable-card-container div {
+    transition-duration: 0.01ms !important;
+  }
 }

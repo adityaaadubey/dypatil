@@ -60,7 +60,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       {/* Top Welcome / Hero Banner */}
       <div className="mr-card" style={{
-        background: 'linear-gradient(135deg, rgba(17, 27, 48, 0.95) 0%, rgba(21, 24, 56, 0.95) 100%)',
+        background: 'var(--hero-gradient)',
         borderColor: 'var(--border-accent)',
         boxShadow: 'var(--shadow-purple-glow)'
       }}>
@@ -75,7 +75,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               </span>
             </div>
             <h1 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-              ModelRouter AI Intelligence & Benchmark Platform
+              veyralabs AI Intelligence & Benchmark Platform
             </h1>
             <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '4px', maxWidth: '780px', lineHeight: 1.6 }}>
               Comprehensive multi-category AI model intelligence derived from official crowd-sourced Arena evaluations, verified provider pricing, latency metrics, and deterministic SLA inference routing.

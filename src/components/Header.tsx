@@ -1,6 +1,5 @@
 import React from 'react';
 import { 
-  Cpu, 
   SlidersHorizontal, 
   History, 
   Sun, 
@@ -12,10 +11,13 @@ import {
   Compass, 
   ShieldCheck,
   ShoppingBag,
-  Coins
+  Coins,
+  Layers,
+  GitCompare
 } from 'lucide-react';
 import type { Model } from '../types';
 import type { DataFreshnessInfo } from '../types/arena';
+import { VeyraLabsLogo } from './VeyraLabsLogo';
 
 interface HeaderProps {
   theme: 'dark' | 'light';
@@ -49,11 +51,14 @@ export const Header: React.FC<HeaderProps> = ({
 
   const navItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'explorer', label: 'Model Explorer', icon: Layers },
+    { id: 'comparison', label: 'Comparison Studio', icon: GitCompare },
     { id: 'pricing', label: 'Pricing & Packages', icon: Coins },
     { id: 'leaderboard', label: 'Leaderboards', icon: Trophy },
     { id: 'analytics', label: 'Analytics & Charts', icon: BarChart3 },
     { id: 'rulebook', label: 'Model Rulebook', icon: BookOpen },
     { id: 'recommendation', label: 'Recommendation Studio', icon: Compass },
+    { id: 'history', label: 'History & Cache', icon: History },
     { id: 'methodology', label: 'Methodology', icon: ShieldCheck }
   ];
 
@@ -75,37 +80,15 @@ export const Header: React.FC<HeaderProps> = ({
         gap: '16px'
       }}>
         {/* Brand / Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => onSelectTab('overview')}>
-          <div style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, var(--accent-purple) 0%, #4F46E5 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 10px var(--accent-purple-glow)'
-          }}>
-            <Cpu size={20} color="#FFFFFF" strokeWidth={2.3} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ 
-                fontSize: '17px', 
-                fontWeight: 800, 
-                letterSpacing: '-0.02em',
-                color: 'var(--text-primary)'
-              }}>
-                ModelRouter
-              </span>
-              <span className="badge badge-purple" style={{ fontSize: '10px', padding: '1px 7px' }}>
-                AI PLATFORM
-              </span>
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              Arena Intelligence & Constraint Gateway
-            </div>
-          </div>
+        <div 
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} 
+          onClick={() => onSelectTab('overview')}
+          title="veyralabs homepage"
+        >
+          <VeyraLabsLogo size={32} showText={true} />
+          <span className="badge badge-purple" style={{ fontSize: '9px', padding: '1px 6px', textTransform: 'uppercase' }}>
+            AI GATEWAY
+          </span>
         </div>
 
         {/* Global Toolbar / Actions */}
@@ -253,6 +236,16 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Icon size={14} color={isActive ? 'var(--accent-purple)' : 'var(--text-muted)'} />
                 <span>{item.label}</span>
+                {item.id === 'explorer' && (
+                  <span className="badge badge-mint" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                    Flip Cards
+                  </span>
+                )}
+                {item.id === 'comparison' && (
+                  <span className="badge badge-purple" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                    2-Model
+                  </span>
+                )}
                 {item.id === 'recommendation' && (
                   <span className="badge badge-purple" style={{ fontSize: '9px', padding: '1px 5px' }}>
                     SLA Gateway

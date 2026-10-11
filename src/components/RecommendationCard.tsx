@@ -12,26 +12,31 @@ import {
   Sparkles, 
   ArrowRight,
   Play,
-  Coins
+  Coins,
+  Calculator
 } from 'lucide-react';
 import type { RecommendationResult, Model } from '../types';
 import type { TrialAllowance } from '../types/billing';
 import { TrialPromptRunnerModal } from './TrialPromptRunnerModal';
+import { MathExplainerModal } from './MathExplainerModal';
 
 interface RecommendationCardProps {
   result: RecommendationResult;
   onSimulateOutage?: (model: Model) => void;
   trialAllowance: TrialAllowance;
   onTrialAllowanceUpdated: (updated: TrialAllowance) => void;
+  onNavigateToMethodology?: () => void;
 }
 
 export const RecommendationCard: React.FC<RecommendationCardProps> = ({ 
   result,
   onSimulateOutage,
   trialAllowance,
-  onTrialAllowanceUpdated
+  onTrialAllowanceUpdated,
+  onNavigateToMethodology
 }) => {
   const [copied, setCopied] = useState(false);
+  const [isMathExplainerOpen, setIsMathExplainerOpen] = useState(false);
   const [trialModalModel, setTrialModalModel] = useState<{
     model: Model;
     rankLabel: 'Rank #1 — Gold Recommendation' | 'Rank #2 — Silver Recommendation' | 'Rank #3 — Bronze Recommendation';
@@ -119,6 +124,29 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             <span style={{ color: 'var(--border-subtle)' }}>•</span>
             <span style={{ color: 'var(--text-secondary)' }}>{result.timestamp}</span>
           </div>
+
+          {/* How was this recommended? Interactive Math Explainer Button */}
+          <button
+            type="button"
+            onClick={() => setIsMathExplainerOpen(true)}
+            className="btn-secondary"
+            style={{
+              padding: '5px 12px',
+              fontSize: '11px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              borderColor: 'var(--border-accent)',
+              backgroundColor: 'var(--bg-pill)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer'
+            }}
+            title="Inspect mathematical routing formulas and constraint audit"
+          >
+            <Calculator size={13} color="var(--accent-primary)" />
+            <span>How was this recommended?</span>
+          </button>
         </div>
       </div>
 
@@ -661,6 +689,14 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
           onTrialAllowanceUpdated={onTrialAllowanceUpdated}
         />
       )}
+
+      {/* How was this recommended? Interactive Math Explainer Modal */}
+      <MathExplainerModal
+        isOpen={isMathExplainerOpen}
+        onClose={() => setIsMathExplainerOpen(false)}
+        result={result}
+        onNavigateToMethodology={onNavigateToMethodology}
+      />
     </div>
   );
 };

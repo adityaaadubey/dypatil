@@ -16,9 +16,13 @@ import { PricingPage } from './components/PricingPage';
 import { PackageConfiguratorModal } from './components/PackageConfiguratorModal';
 import { CartDrawer } from './components/CartDrawer';
 import { QrCheckoutModal } from './components/QrCheckoutModal';
+import { ModelExplorer } from './components/ModelExplorer';
+import { ModelComparisonStudio } from './components/ModelComparisonStudio';
+import { HistoryWorkspace } from './components/HistoryWorkspace';
 import { INITIAL_MODELS, SAMPLE_PROMPTS } from './data/models';
 import { INITIAL_ARENA_MODELS, calculateDataFreshness } from './services/dataService';
 import { routeRequest } from './services/routerEngine';
+import { getEnrichedCatalog } from './services/modelCatalogService';
 import { 
   loadCart, 
   saveCart, 
@@ -43,11 +47,19 @@ import type {
   PendingOrder, 
   TrialAllowance 
 } from './types/billing';
+import type { EnrichedModelCatalogItem } from './types/modelExplorer';
 import { Terminal, CheckCircle2 } from 'lucide-react';
 
 export const App: React.FC = () => {
-  // Theme state: dark (default) or light
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  // Theme state: dark (default) or light, persisted in local storage
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('veyralabs_theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      return 'light';
+    }
+    return 'dark';
+  });
 
   // Active top-level navigation tab
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -88,6 +100,17 @@ export const App: React.FC = () => {
   const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
 
+  // --- Master Enriched Catalog & Two-Model Comparison State ---
+  const [enrichedCatalog] = useState<EnrichedModelCatalogItem[]>(() => getEnrichedCatalog());
+  const [comparisonModelA, setComparisonModelA] = useState<EnrichedModelCatalogItem | null>(() => {
+    const list = getEnrichedCatalog();
+    return list[0] || null;
+  });
+  const [comparisonModelB, setComparisonModelB] = useState<EnrichedModelCatalogItem | null>(() => {
+    const list = getEnrichedCatalog();
+    return list[1] || list[0] || null;
+  });
+
   // Modals state
   const [isJudgePanelOpen, setIsJudgePanelOpen] = useState<boolean>(false);
   const [isAuditLogOpen, setIsAuditLogOpen] = useState<boolean>(false);
@@ -95,9 +118,10 @@ export const App: React.FC = () => {
   // Telemetry Audit Logs
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
 
-  // Apply theme attribute
+  // Apply theme attribute and persist
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('veyralabs_theme', theme);
   }, [theme]);
 
   // Execute recommendation routing
@@ -261,6 +285,21 @@ export const App: React.FC = () => {
     }
   };
 
+  // --- Master Model Explorer & Comparison Studio Handlers ---
+  const handleSelectForCompare = (model: EnrichedModelCatalogItem) => {
+    if (!comparisonModelA || comparisonModelA.id === model.id) {
+      setComparisonModelB(model);
+    } else {
+      setComparisonModelA(model);
+    }
+    setActiveTab('comparison');
+  };
+
+  const handleOpenTestPrompt = (model: EnrichedModelCatalogItem) => {
+    setComparisonModelA(model);
+    setActiveTab('comparison');
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Navigation Header */}
@@ -309,6 +348,30 @@ export const App: React.FC = () => {
               onViewModelProfile={(m) => { setSelectedRulebookModel(m); setActiveTab('rulebook'); }}
               onNavigateToTab={setActiveTab}
             />
+          )}
+
+          {/* TAB: Dedicated Model Explorer with 3D Flip Cards & Free/Paid Tabs */}
+          {activeTab === 'explorer' && (
+            <ModelExplorer
+              catalog={enrichedCatalog}
+              onSelectForCompare={handleSelectForCompare}
+              onOpenTestPrompt={handleOpenTestPrompt}
+            />
+          )}
+
+          {/* TAB: Dedicated Two-Model Comparison Studio (Mode A & Mode B) */}
+          {activeTab === 'comparison' && (
+            <ModelComparisonStudio
+              allModels={enrichedCatalog}
+              initialModelA={comparisonModelA}
+              initialModelB={comparisonModelB}
+              onNavigateToExplorer={() => setActiveTab('explorer')}
+            />
+          )}
+
+          {/* TAB: Activity History, Saved Workspace & Cryptographic Cache Analytics */}
+          {activeTab === 'history' && (
+            <HistoryWorkspace />
           )}
 
           {/* TAB: Pricing & Token Packages */}
@@ -392,6 +455,7 @@ export const App: React.FC = () => {
                       onSimulateOutage={(m) => handleTriggerFailoverTest(m.id)}
                       trialAllowance={trialAllowance}
                       onTrialAllowanceUpdated={setTrialAllowance}
+                      onNavigateToMethodology={() => setActiveTab('methodology')}
                     />
                   ) : (
                     <NoValidModelCard
@@ -435,7 +499,7 @@ export const App: React.FC = () => {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Terminal size={14} color="var(--accent-purple)" />
-            <span>ModelRouter AI Intelligence Platform • Normalized Arena Leaderboards ({arenaModels.length} Models)</span>
+            <span>veyralabs AI Intelligence Platform • Normalized Model Catalogue & Inference Gateway ({arenaModels.length} Models)</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
