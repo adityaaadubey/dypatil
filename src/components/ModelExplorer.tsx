@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
   Star, 
@@ -9,6 +9,15 @@ import { filterCatalog, type CatalogFilterOptions } from '../services/modelCatal
 import { FlippableModelCard } from './FlippableModelCard';
 import { ModelDetailModal } from './ModelDetailModal';
 import { getFavouriteModelIds, toggleFavouriteModel } from '../services/historyService';
+import {
+  gsap,
+  ScrollTrigger,
+  prefersReducedMotion,
+  animateMetricCounter,
+  triggerGlitchBurst,
+  attachMagneticInteraction,
+  attachCyberCardPhysics,
+} from '../utils/gsapMotion';
 
 interface ModelExplorerProps {
   catalog: EnrichedModelCatalogItem[];
@@ -37,6 +46,10 @@ export const ModelExplorer: React.FC<ModelExplorerProps> = ({
 
   // Detail Modal state
   const [selectedDetailModel, setSelectedDetailModel] = useState<EnrichedModelCatalogItem | null>(null);
+
+  const explorerRef = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const showingCountRef = useRef<HTMLElement | null>(null);
 
   // Unique providers list
   const providers = useMemo(() => {
@@ -94,9 +107,91 @@ export const ModelExplorer: React.FC<ModelExplorerProps> = ({
     modality,
     isOpenWeightOnly,
     verifiedPricingOnly,
+    executableOnly,
     sortBy,
     showFavouritesOnly,
     favouriteIds
+  ]);
+
+  // Animate showing count & staggered 3D model card cascade on filter change
+  useEffect(() => {
+    if (showingCountRef.current) {
+      animateMetricCounter(showingCountRef.current, filteredModels.length, { duration: 0.55 });
+    }
+
+    const rootEl = explorerRef.current;
+    const gridEl = gridRef.current;
+    if (!rootEl) return;
+
+    const cleanupMagnetic = attachMagneticInteraction(rootEl);
+    const cleanupCards = gridEl ? attachCyberCardPhysics(gridEl) : () => {};
+
+    if (prefersReducedMotion() || !gridEl) {
+      return () => {
+        cleanupMagnetic();
+        cleanupCards();
+      };
+    }
+
+    const ctx = gsap.context(() => {
+      const cards = Array.from(gridEl.querySelectorAll<HTMLElement>('.flippable-card-container'));
+      const initialBatch = cards.slice(0, 12);
+      const scrollBatch = cards.slice(12);
+
+      if (initialBatch.length > 0) {
+        gsap.fromTo(
+          initialBatch,
+          { opacity: 0, y: 20, scale: 0.96 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.42,
+            stagger: 0.035,
+            ease: 'back.out(1.4)',
+            clearProps: 'transform',
+          }
+        );
+      }
+
+      if (scrollBatch.length > 0) {
+        ScrollTrigger.batch(scrollBatch, {
+          start: 'top 92%',
+          once: true,
+          onEnter: (batch) => {
+            gsap.fromTo(
+              batch,
+              { opacity: 0, y: 22, scale: 0.96 },
+              {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                duration: 0.4,
+                stagger: 0.035,
+                ease: 'back.out(1.3)',
+                clearProps: 'transform',
+              }
+            );
+          },
+        });
+      }
+    }, gridEl);
+
+    return () => {
+      cleanupMagnetic();
+      cleanupCards();
+      ctx.revert();
+    };
+  }, [
+    accessTier,
+    selectedProvider,
+    modality,
+    isOpenWeightOnly,
+    verifiedPricingOnly,
+    executableOnly,
+    sortBy,
+    showFavouritesOnly,
+    filteredModels.length,
   ]);
 
   const handleToggleFav = (id: string) => {
@@ -111,12 +206,13 @@ export const ModelExplorer: React.FC<ModelExplorerProps> = ({
     setModality('all');
     setIsOpenWeightOnly(false);
     setVerifiedPricingOnly(false);
+    setExecutableOnly(false);
     setShowFavouritesOnly(false);
     setSortBy('elo_desc');
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div ref={explorerRef} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Top Banner / Heading */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
@@ -141,11 +237,7 @@ export const ModelExplorer: React.FC<ModelExplorerProps> = ({
       </div>
 
       {/* Control Panel: Tier Tabs, Search, Filters */}
-      <div style={{
-        backgroundColor: 'var(--bg-panel)',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--border-subtle)',
-        padding: '20px',
+      <div className="mr-card gsap-corner-reticle" style={{
         display: 'flex',
         flexDirection: 'column',
         gap: '16px'
@@ -156,87 +248,122 @@ export const ModelExplorer: React.FC<ModelExplorerProps> = ({
           alignItems: 'center',
           gap: '8px',
           overflowX: 'auto',
-          borderBottom: '1px solid var(--border-subtle)',
+          borderBottom: '2px solid var(--border-subtle)',
           paddingBottom: '14px'
         }}>
           <button
-            onClick={() => setAccessTier('all')}
+            type="button"
+            data-magnetic="true"
+            onClick={(e) => {
+              setAccessTier('all');
+              triggerGlitchBurst(e.currentTarget);
+            }}
             style={{
               padding: '7px 16px',
-              fontSize: '12px',
-              fontWeight: accessTier === 'all' ? 700 : 500,
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: accessTier === 'all' ? 'var(--accent-purple)' : 'var(--bg-card)',
-              color: accessTier === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
-              border: '1px solid var(--border-subtle)',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              backgroundColor: accessTier === 'all' ? 'var(--dusk-3)' : 'var(--bg-pill)',
+              color: accessTier === 'all' ? 'var(--accent-gold)' : 'var(--text-secondary)',
+              border: accessTier === 'all' ? '2px solid var(--border-accent-strong)' : '2px solid var(--border-subtle)',
+              boxShadow: '3px 3px 0 var(--shadow-color)',
               cursor: 'pointer',
               whiteSpace: 'nowrap'
             }}
           >
-            All Models ({tierCounts.total})
+            01 // All Models ({tierCounts.total})
           </button>
 
           <button
-            onClick={() => setAccessTier('free')}
+            type="button"
+            data-magnetic="true"
+            onClick={(e) => {
+              setAccessTier('free');
+              triggerGlitchBurst(e.currentTarget);
+            }}
             style={{
               padding: '7px 16px',
-              fontSize: '12px',
-              fontWeight: accessTier === 'free' ? 700 : 500,
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: accessTier === 'free' ? 'var(--accent-mint)' : 'var(--bg-card)',
-              color: accessTier === 'free' ? '#0B1020' : 'var(--text-secondary)',
-              border: '1px solid var(--border-subtle)',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              backgroundColor: accessTier === 'free' ? 'var(--accent-mint)' : 'var(--bg-pill)',
+              color: accessTier === 'free' ? '#150c28' : 'var(--text-secondary)',
+              border: accessTier === 'free' ? '2px solid var(--border-accent-strong)' : '2px solid var(--border-subtle)',
+              boxShadow: '3px 3px 0 var(--shadow-color)',
               cursor: 'pointer',
               whiteSpace: 'nowrap'
             }}
           >
-            Free Models & Open Weights ({tierCounts.free})
+            02 // Free & Open Weights ({tierCounts.free})
           </button>
 
           <button
-            onClick={() => setAccessTier('paid')}
+            type="button"
+            data-magnetic="true"
+            onClick={(e) => {
+              setAccessTier('paid');
+              triggerGlitchBurst(e.currentTarget);
+            }}
             style={{
               padding: '7px 16px',
-              fontSize: '12px',
-              fontWeight: accessTier === 'paid' ? 700 : 500,
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: accessTier === 'paid' ? 'var(--accent-amber)' : 'var(--bg-card)',
-              color: accessTier === 'paid' ? '#000000' : 'var(--text-secondary)',
-              border: '1px solid var(--border-subtle)',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              backgroundColor: accessTier === 'paid' ? 'var(--accent-amber)' : 'var(--bg-pill)',
+              color: accessTier === 'paid' ? '#150c28' : 'var(--text-secondary)',
+              border: accessTier === 'paid' ? '2px solid var(--border-accent-strong)' : '2px solid var(--border-subtle)',
+              boxShadow: '3px 3px 0 var(--shadow-color)',
               cursor: 'pointer',
               whiteSpace: 'nowrap'
             }}
           >
-            Paid Commercial APIs ({tierCounts.paid})
+            03 // Paid Commercial APIs ({tierCounts.paid})
           </button>
 
           <button
-            onClick={() => setAccessTier('hybrid')}
+            type="button"
+            data-magnetic="true"
+            onClick={(e) => {
+              setAccessTier('hybrid');
+              triggerGlitchBurst(e.currentTarget);
+            }}
             style={{
               padding: '7px 16px',
-              fontSize: '12px',
-              fontWeight: accessTier === 'hybrid' ? 700 : 500,
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: accessTier === 'hybrid' ? 'var(--accent-purple-dim)' : 'var(--bg-card)',
-              color: accessTier === 'hybrid' ? 'var(--accent-purple)' : 'var(--text-secondary)',
-              border: accessTier === 'hybrid' ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              backgroundColor: accessTier === 'hybrid' ? 'var(--dusk-3)' : 'var(--bg-pill)',
+              color: accessTier === 'hybrid' ? 'var(--accent-gold)' : 'var(--text-secondary)',
+              border: accessTier === 'hybrid' ? '2px solid var(--accent-gold)' : '2px solid var(--border-subtle)',
+              boxShadow: '3px 3px 0 var(--shadow-color)',
               cursor: 'pointer',
               whiteSpace: 'nowrap'
             }}
           >
-            Hybrid / Free Quota Tiers ({tierCounts.hybrid})
+            04 // Hybrid / Free Quota ({tierCounts.hybrid})
           </button>
 
           <button
-            onClick={() => setExecutableOnly(!executableOnly)}
+            type="button"
+            data-magnetic="true"
+            onClick={(e) => {
+              setExecutableOnly(!executableOnly);
+              triggerGlitchBurst(e.currentTarget);
+            }}
             style={{
               padding: '7px 16px',
-              fontSize: '12px',
-              fontWeight: executableOnly ? 700 : 500,
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: executableOnly ? 'rgba(53, 214, 165, 0.25)' : 'var(--bg-card)',
-              color: executableOnly ? '#35D6A5' : 'var(--text-secondary)',
-              border: executableOnly ? '1px solid #35D6A5' : '1px solid var(--border-subtle)',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              backgroundColor: executableOnly ? 'var(--accent-coral)' : 'var(--bg-pill)',
+              color: executableOnly ? '#150c28' : 'var(--text-secondary)',
+              border: executableOnly ? '2px solid var(--border-accent-strong)' : '2px solid var(--border-subtle)',
+              boxShadow: '3px 3px 0 var(--shadow-color)',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               display: 'flex',
@@ -244,7 +371,7 @@ export const ModelExplorer: React.FC<ModelExplorerProps> = ({
               gap: '6px'
             }}
           >
-            <span>⚡ Executable APIs ({executableCount})</span>
+            <span>▶ EXECUTABLE APIS ({executableCount})</span>
           </button>
 
           {favouriteIds.length > 0 && (
@@ -385,8 +512,8 @@ export const ModelExplorer: React.FC<ModelExplorerProps> = ({
             </label>
           </div>
 
-          <div style={{ color: 'var(--text-muted)' }}>
-            Showing <strong style={{ color: 'var(--text-primary)' }}>{filteredModels.length}</strong> of {catalog.length} registered models
+          <div className="tabular-nums" style={{ color: 'var(--text-muted)' }}>
+            Showing <strong ref={showingCountRef} style={{ color: 'var(--text-primary)' }}>{filteredModels.length}</strong> of {catalog.length} registered models
           </div>
         </div>
       </div>
@@ -416,11 +543,14 @@ export const ModelExplorer: React.FC<ModelExplorerProps> = ({
           </button>
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: '20px'
-        }}>
+        <div
+          ref={gridRef}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gap: '20px'
+          }}
+        >
           {filteredModels.slice(0, 60).map((m) => (
             <FlippableModelCard
               key={m.id}

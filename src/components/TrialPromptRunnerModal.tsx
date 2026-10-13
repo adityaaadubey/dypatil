@@ -17,7 +17,7 @@ interface TrialPromptRunnerModalProps {
   isOpen: boolean;
   onClose: () => void;
   model: Model;
-  rankLabel: 'Rank #1 — Gold Recommendation' | 'Rank #2 — Silver Recommendation' | 'Rank #3 — Bronze Recommendation';
+  rankLabel: 'Rank #1 - Gold Recommendation' | 'Rank #2 - Silver Recommendation' | 'Rank #3 - Bronze Recommendation';
   rankBadgeClass: string;
   promptText: string;
   trialAllowance: TrialAllowance;

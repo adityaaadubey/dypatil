@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { 
   Database, 
   Building2, 
@@ -15,6 +15,13 @@ import {
 } from 'lucide-react';
 import type { ArenaModel, DataFreshnessInfo } from '../types/arena';
 import { exportToCSV, exportToJSON } from '../services/dataService';
+import {
+  gsap,
+  prefersReducedMotion,
+  animateMetricCounter,
+  attachMagneticInteraction,
+  attachCyberCardPhysics,
+} from '../utils/gsapMotion';
 
 interface OverviewDashboardProps {
   models: ArenaModel[];
@@ -32,6 +39,13 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   onViewModelProfile,
   onNavigateToTab
 }) => {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const kpiModelsRef = useRef<HTMLDivElement | null>(null);
+  const kpiProvidersRef = useRef<HTMLDivElement | null>(null);
+  const kpiGroupsRef = useRef<HTMLDivElement | null>(null);
+  const kpiPricingRef = useRef<HTMLDivElement | null>(null);
+  const kpiOpenRef = useRef<HTMLDivElement | null>(null);
+
   // Compute leaders across discovered categories
   const overallLeader = models.find((m) => m.primaryCategory === 'Text / Overall' && m.rank === 1) || models[0];
   const agentLeader = models.find((m) => m.primaryCategory.includes('Agent') && m.rank === 1) || models.find((m) => m.primaryCategory.includes('Agent'));
@@ -56,29 +70,101 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     .sort((a, b) => b[1] - a[1])
     .slice(0, 7);
 
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+
+    const cleanupMagnetic = attachMagneticInteraction(el);
+    const cleanupCards = attachCyberCardPhysics(el);
+
+    animateMetricCounter(kpiModelsRef.current, freshness.totalRecords, { duration: 0.9 });
+    animateMetricCounter(kpiProvidersRef.current, freshness.totalProviders, { duration: 0.85, delay: 0.05 });
+    animateMetricCounter(kpiGroupsRef.current, freshness.totalCategories, { duration: 0.85, delay: 0.1 });
+    animateMetricCounter(kpiPricingRef.current, freshness.recordsWithPricing, { duration: 0.9, delay: 0.15 });
+    animateMetricCounter(kpiOpenRef.current, freshness.openWeightCount, { duration: 0.9, delay: 0.2 });
+
+    if (prefersReducedMotion()) {
+      return () => {
+        cleanupMagnetic();
+        cleanupCards();
+      };
+    }
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        '.ov-kpi-card',
+        { opacity: 0, y: 18, scale: 0.95 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.45,
+          stagger: 0.055,
+          ease: 'back.out(1.7)',
+          clearProps: 'transform',
+        }
+      );
+
+      gsap.fromTo(
+        '.ov-leader-card',
+        { opacity: 0, y: 20, rotateX: -12 },
+        {
+          opacity: 1,
+          y: 0,
+          rotateX: 0,
+          duration: 0.48,
+          stagger: 0.065,
+          delay: 0.12,
+          ease: 'expo.out',
+          clearProps: 'transform',
+        }
+      );
+
+      gsap.fromTo(
+        '.ov-top-row',
+        { opacity: 0, x: -14 },
+        {
+          opacity: 1,
+          x: 0,
+          duration: 0.36,
+          stagger: 0.04,
+          delay: 0.18,
+          ease: 'power2.out',
+          clearProps: 'transform',
+        }
+      );
+    }, el);
+
+    return () => {
+      cleanupMagnetic();
+      cleanupCards();
+      ctx.revert();
+    };
+  }, [freshness.lastSyncTimestamp, freshness.totalRecords]);
+
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+    <div ref={rootRef} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       {/* Top Welcome / Hero Banner */}
-      <div className="mr-card" style={{
+      <div className="mr-card gsap-laser-sweep gsap-corner-reticle" style={{
         background: 'var(--hero-gradient)',
         borderColor: 'var(--border-accent)',
         boxShadow: 'var(--shadow-purple-glow)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <span className="badge badge-purple">
                 GLOBAL LEADERBOARD INTELLIGENCE
               </span>
-              <span className="badge badge-mint">
+              <span className="badge badge-mint tabular-nums">
                 LIVE ARENA CATALOGUE ({freshness.totalRecords} MODELS)
               </span>
             </div>
-            <h1 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-              veyralabs AI Intelligence & Benchmark Platform
+            <h1 style={{ fontSize: '27px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>
+              VeyraLabs AI Intelligence & Benchmark Platform
             </h1>
-            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '4px', maxWidth: '780px', lineHeight: 1.6 }}>
-              Comprehensive multi-category AI model intelligence derived from official crowd-sourced Arena evaluations, verified provider pricing, latency metrics, and deterministic SLA inference routing.
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '6px', maxWidth: '64ch', lineHeight: 1.6 }}>
+              Multi-category AI model intelligence derived from official Arena evaluations, verified provider pricing, p95 latency telemetry, and deterministic SLA inference routing.
             </p>
           </div>
 
@@ -128,20 +214,20 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           color: 'var(--text-secondary)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{
+            <span className="animate-pulse-glow" style={{
               width: '8px',
               height: '8px',
               borderRadius: '50%',
               backgroundColor: 'var(--accent-mint)',
               boxShadow: '0 0 8px var(--accent-mint)'
             }} />
-            <span>
+            <span className="tabular-nums">
               Snapshot Status: <strong style={{ color: 'var(--text-primary)' }}>{freshness.syncStatus.toUpperCase()}</strong> (Last synced: {freshness.lastSyncTimestamp})
             </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span>Verified Sources: <strong>Arena.ai SSR + Official Docs</strong></span>
+            <span>Verified Sources: <strong style={{ color: 'var(--text-primary)' }}>Arena.ai SSR + Official Provider APIs</strong></span>
             <span>•</span>
             <span>Zero Merging of Distinct Configurations</span>
           </div>
@@ -151,81 +237,81 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
       {/* KPI Cards Grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
         gap: '14px'
       }}>
-        <div className="mr-card" style={{ padding: '16px' }}>
+        <div className="mr-card ov-kpi-card" style={{ padding: '16px 18px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               Tracked Models
             </span>
-            <Database size={16} color="var(--accent-purple)" />
+            <Database size={15} color="var(--accent-purple)" />
           </div>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '6px' }}>
+          <div ref={kpiModelsRef} className="tabular-nums" style={{ fontSize: '25px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px' }}>
             {freshness.totalRecords.toLocaleString()}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--accent-mint)', marginTop: '2px' }}>
+          <div className="tabular-nums" style={{ fontSize: '11.5px', color: 'var(--accent-mint)', marginTop: '2px' }}>
             656 Distinct Variants
           </div>
         </div>
 
-        <div className="mr-card" style={{ padding: '16px' }}>
+        <div className="mr-card ov-kpi-card" style={{ padding: '16px 18px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               Providers
             </span>
-            <Building2 size={16} color="var(--accent-mint)" />
+            <Building2 size={15} color="var(--accent-mint)" />
           </div>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '6px' }}>
+          <div ref={kpiProvidersRef} className="tabular-nums" style={{ fontSize: '25px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px' }}>
             {freshness.totalProviders}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            OpenAI, Anthropic, Google, Meta...
+          <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            Google, Groq, OpenAI, Anthropic...
           </div>
         </div>
 
-        <div className="mr-card" style={{ padding: '16px' }}>
+        <div className="mr-card ov-kpi-card" style={{ padding: '16px 18px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               Leaderboard Groups
             </span>
-            <Layers size={16} color="#F59E0B" />
+            <Layers size={15} color="var(--accent-amber)" />
           </div>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '6px' }}>
+          <div ref={kpiGroupsRef} className="tabular-nums" style={{ fontSize: '25px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px' }}>
             {freshness.totalCategories}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+          <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Text, Agent, Code, Vision, Media
           </div>
         </div>
 
-        <div className="mr-card" style={{ padding: '16px' }}>
+        <div className="mr-card ov-kpi-card" style={{ padding: '16px 18px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               Verified Pricing
             </span>
-            <DollarSign size={16} color="var(--accent-mint)" />
+            <DollarSign size={15} color="var(--accent-mint)" />
           </div>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '6px' }}>
+          <div ref={kpiPricingRef} className="tabular-nums" style={{ fontSize: '25px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px' }}>
             {freshness.recordsWithPricing}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--accent-mint)', marginTop: '2px' }}>
-            {((freshness.recordsWithPricing / freshness.totalRecords) * 100).toFixed(0)}% Coverage
+          <div className="tabular-nums" style={{ fontSize: '11.5px', color: 'var(--accent-mint)', marginTop: '2px' }}>
+            {((freshness.recordsWithPricing / freshness.totalRecords) * 100).toFixed(1)}% Coverage
           </div>
         </div>
 
-        <div className="mr-card" style={{ padding: '16px' }}>
+        <div className="mr-card ov-kpi-card" style={{ padding: '16px 18px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               Open-Weights
             </span>
-            <Cpu size={16} color="var(--accent-purple)" />
+            <Cpu size={15} color="var(--accent-purple)" />
           </div>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '6px' }}>
+          <div ref={kpiOpenRef} className="tabular-nums" style={{ fontSize: '25px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px' }}>
             {freshness.openWeightCount}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Llama, Qwen, DeepSeek, Mistral
+          <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            Llama, Qwen, Gemma, DeepSeek
           </div>
         </div>
       </div>
@@ -258,7 +344,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           {/* Leader 1: Overall Text */}
           {overallLeader && (
             <div 
-              className="mr-card" 
+              className="mr-card ov-leader-card gsap-corner-reticle" 
               onClick={() => onViewModelProfile(overallLeader)}
               style={{
                 cursor: 'pointer',
@@ -276,7 +362,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 {overallLeader.modelDisplayName}
               </h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '12px' }}>
+              <div className="tabular-nums" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '12px' }}>
                 <span style={{ color: 'var(--accent-mint)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                   {overallLeader.rating} Elo
                 </span>
@@ -285,7 +371,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                   {overallLeader.votes.toLocaleString()} votes
                 </span>
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
+              <div className="tabular-nums" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
                 ${overallLeader.inputPricePerMillion}/M in • {overallLeader.variant}
               </div>
             </div>
@@ -294,7 +380,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           {/* Leader 2: Agent Leader */}
           {agentLeader && (
             <div 
-              className="mr-card" 
+              className="mr-card ov-leader-card gsap-corner-reticle" 
               onClick={() => onViewModelProfile(agentLeader)}
               style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
             >
@@ -307,7 +393,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 {agentLeader.modelDisplayName}
               </h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '12px' }}>
+              <div className="tabular-nums" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '12px' }}>
                 <span style={{ color: 'var(--accent-mint)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                   {agentLeader.rating} Elo
                 </span>
@@ -325,7 +411,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           {/* Leader 3: WebDev Leader */}
           {webdevLeader && (
             <div 
-              className="mr-card" 
+              className="mr-card ov-leader-card gsap-corner-reticle" 
               onClick={() => onViewModelProfile(webdevLeader)}
               style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
             >
@@ -338,7 +424,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 {webdevLeader.modelDisplayName}
               </h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '12px' }}>
+              <div className="tabular-nums" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '12px' }}>
                 <span style={{ color: 'var(--accent-mint)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                   {webdevLeader.rating} Elo
                 </span>
@@ -347,7 +433,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                   {webdevLeader.votes.toLocaleString()} votes
                 </span>
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
+              <div className="tabular-nums" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
                 ${webdevLeader.inputPricePerMillion}/M in • {webdevLeader.variant}
               </div>
             </div>
@@ -356,7 +442,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           {/* Leader 4: Best Open Weight */}
           {openWeightLeader && (
             <div 
-              className="mr-card" 
+              className="mr-card ov-leader-card gsap-corner-reticle" 
               onClick={() => onViewModelProfile(openWeightLeader)}
               style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
             >
@@ -369,7 +455,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 {openWeightLeader.modelDisplayName}
               </h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '12px' }}>
+              <div className="tabular-nums" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '12px' }}>
                 <span style={{ color: 'var(--accent-mint)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                   {openWeightLeader.rating} Elo
                 </span>
@@ -412,6 +498,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             {topModels.map((m, idx) => (
               <div
                 key={m.id}
+                className="ov-top-row"
                 onClick={() => onViewModelProfile(m)}
                 style={{
                   padding: '10px 14px',
@@ -427,33 +514,33 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '6px',
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '0px',
                     backgroundColor: idx === 0 ? 'var(--accent-mint-dim)' : 'var(--bg-pill)',
-                    color: idx === 0 ? 'var(--accent-mint)' : 'var(--text-secondary)',
+                    color: idx === 0 ? 'var(--accent-mint)' : 'var(--accent-gold)',
                     fontWeight: 700,
-                    fontSize: '12px',
+                    fontSize: '11.5px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    border: idx === 0 ? '1px solid var(--accent-mint)' : '1px solid var(--border-subtle)'
+                    border: idx === 0 ? '2px solid var(--accent-mint)' : '2px solid var(--border-subtle)'
                   }}>
                     #{idx + 1}
                   </span>
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                       {m.modelDisplayName}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      {m.provider} • {m.primaryCategory}
+                      {m.provider} // {m.primaryCategory}
                     </div>
                   </div>
                 </div>
 
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-mint)', fontFamily: 'var(--font-mono)' }}>
-                    {m.rating} Elo
+                    {m.rating} ELO
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                     {m.votes.toLocaleString()} votes
@@ -485,9 +572,9 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                   onClick={() => onViewModelProfile(m)}
                   style={{
                     padding: '10px 12px',
-                    borderRadius: 'var(--radius-sm)',
+                    borderRadius: '0px',
                     backgroundColor: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
+                    border: '2px solid var(--border-subtle)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -495,19 +582,19 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                   }}
                 >
                   <div>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                       {m.modelDisplayName}
                     </span>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      {m.provider} • {m.license}
+                      {m.provider} // {m.license}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-mint)' }}>
                       ${m.inputPricePerMillion}/M in
                     </span>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-                      {m.rating} Elo
+                    <div style={{ fontSize: '11px', color: 'var(--accent-gold)', fontFamily: 'var(--font-mono)' }}>
+                      {m.rating} ELO
                     </div>
                   </div>
                 </div>
@@ -515,29 +602,47 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             </div>
           </div>
 
-          {/* Provider Representation Breakdown */}
+          {/* Provider Representation Breakdown (Pixel Terminal Segmented Readout) */}
           <div className="mr-card">
             <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>
               Provider Representation in Catalogue
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {topProviders.map(([provider, count]) => (
-                <div key={provider}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '3px' }}>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{provider}</span>
-                    <span style={{ color: 'var(--text-secondary)' }}>{count} models</span>
+              {topProviders.map(([provider, count], idx) => {
+                const sharePct = ((count / models.length) * 100).toFixed(1);
+                return (
+                  <div
+                    key={provider}
+                    className="tabular-nums"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      backgroundColor: 'var(--bg-input)',
+                      border: '1.5px solid var(--border-subtle)',
+                      fontSize: '12px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: 'var(--accent-gold)', fontWeight: 700 }}>
+                        0{idx + 1}
+                      </span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 700, textTransform: 'uppercase' }}>
+                        {provider}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ color: 'var(--accent-mint)', fontWeight: 700 }}>
+                        {count} MODELS
+                      </span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                        [{sharePct}%]
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--bg-pill)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{
-                      width: `${(count / models.length) * 100 * 4}%`,
-                      maxWidth: '100%',
-                      height: '100%',
-                      backgroundColor: 'var(--accent-purple)',
-                      borderRadius: '3px'
-                    }} />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

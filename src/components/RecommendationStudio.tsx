@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, 
   Clock, 
@@ -18,6 +18,12 @@ import type {
 import { SAMPLE_PROMPTS } from '../data/models';
 import { estimateComplexity } from '../services/routerEngine';
 import { RecommendationInfoModal } from './RecommendationInfoModal';
+import {
+  gsap,
+  prefersReducedMotion,
+  triggerGlitchBurst,
+  attachMagneticInteraction,
+} from '../utils/gsapMotion';
 
 interface RecommendationStudioProps {
   prompt: string;
@@ -47,7 +53,47 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
   result
 }) => {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState<boolean>(false);
+  const studioRef = useRef<HTMLDivElement | null>(null);
+  const complexityBarRef = useRef<HTMLDivElement | null>(null);
+  const solverLaserRef = useRef<HTMLDivElement | null>(null);
   const complexity = estimateComplexity(prompt, category);
+
+  useEffect(() => {
+    const el = studioRef.current;
+    if (!el) return;
+    const cleanup = attachMagneticInteraction(el);
+    return () => cleanup();
+  }, []);
+
+  // Animate complexity gauge bar whenever complexity score changes
+  useEffect(() => {
+    if (!complexityBarRef.current) return;
+    const pct = Math.min(100, Math.max(8, (complexity.complexityScore / 10) * 100));
+    if (prefersReducedMotion()) {
+      complexityBarRef.current.style.width = `${pct}%`;
+      return;
+    }
+    gsap.to(complexityBarRef.current, {
+      width: `${pct}%`,
+      duration: 0.45,
+      ease: 'expo.out',
+    });
+  }, [complexity.complexityScore]);
+
+  // Trigger dramatic solver laser sweep when routing calculation runs
+  useEffect(() => {
+    if (!isLoading || !solverLaserRef.current || prefersReducedMotion()) return;
+    gsap.fromTo(
+      solverLaserRef.current,
+      { top: '0%', opacity: 1 },
+      {
+        top: '100%',
+        opacity: 0,
+        duration: 0.35,
+        ease: 'power2.out',
+      }
+    );
+  }, [isLoading]);
 
   const handleApplyPreset = (index: number) => {
     const sample = SAMPLE_PROMPTS[index];
@@ -55,6 +101,21 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
     setCategory(sample.category);
     setConstraints(sample.constraints);
     setPreference(sample.preference);
+
+    if (studioRef.current && !prefersReducedMotion()) {
+      gsap.fromTo(
+        studioRef.current.querySelectorAll('.studio-reactive-zone'),
+        { borderColor: 'var(--accent-gold)', boxShadow: '0 0 14px rgba(242, 201, 125, 0.28)' },
+        {
+          borderColor: 'var(--border-subtle)',
+          boxShadow: 'none',
+          duration: 0.55,
+          stagger: 0.05,
+          ease: 'power2.out',
+          clearProps: 'borderColor,boxShadow',
+        }
+      );
+    }
   };
 
   const updateConstraint = <K extends keyof Constraints>(key: K, value: Constraints[K]) => {
@@ -88,7 +149,27 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
   ];
 
   return (
-    <div className="mr-card" style={{ marginBottom: '28px', position: 'relative' }}>
+    <div
+      ref={studioRef}
+      className="mr-card gsap-corner-reticle"
+      style={{ marginBottom: '28px', position: 'relative', overflow: 'hidden' }}
+    >
+      {/* Active Solver Laser Sweep Line */}
+      <div
+        ref={solverLaserRef}
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          height: '3px',
+          background:
+            'linear-gradient(90deg, transparent, var(--accent-purple), var(--accent-gold), var(--accent-coral), transparent)',
+          boxShadow: '0 0 18px var(--accent-gold)',
+          opacity: 0,
+          pointerEvents: 'none',
+          zIndex: 10,
+        }}
+      />
       {/* Studio Header: Title on Left, Info ⓘ Button in Top Right Corner */}
       <div style={{
         display: 'flex',
@@ -117,33 +198,24 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
           onClick={() => setIsInfoModalOpen(true)}
           title="How VeyraLabs Recommends a Model (Architecture & Math Pipeline)"
           aria-label="How VeyraLabs Recommends a Model"
+          className="btn-secondary"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '34px',
-            height: '34px',
-            borderRadius: '50%',
-            backgroundColor: 'rgba(101, 60, 161, 0.15)',
-            border: '1.5px solid var(--accent-purple, #8A5CF6)',
-            color: 'var(--accent-purple, #AC91F1)',
+            width: '36px',
+            height: '36px',
+            padding: 0,
+            borderRadius: '0px',
+            backgroundColor: 'var(--bg-pill)',
+            border: '2px solid var(--accent-gold)',
+            color: 'var(--accent-gold)',
             cursor: 'pointer',
             flexShrink: 0,
-            transition: 'all 0.2s ease',
-            boxShadow: '0 2px 8px rgba(101, 60, 161, 0.2)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--accent-purple, #8A5CF6)';
-            e.currentTarget.style.color = '#FFFFFF';
-            e.currentTarget.style.transform = 'scale(1.08)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(101, 60, 161, 0.15)';
-            e.currentTarget.style.color = 'var(--accent-purple, #AC91F1)';
-            e.currentTarget.style.transform = 'scale(1)';
+            boxShadow: '3px 3px 0 var(--shadow-color)'
           }}
         >
-          <Info size={18} strokeWidth={2.4} />
+          <Info size={17} strokeWidth={2.4} />
         </button>
       </div>
 
@@ -156,6 +228,7 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
           <button
             key={idx}
             type="button"
+            data-magnetic="true"
             onClick={() => handleApplyPreset(idx)}
             className="btn-ghost"
             style={{
@@ -185,13 +258,14 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
             <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
               Request Prompt
             </label>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            <div className="tabular-nums" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
               Est. ~{complexity.estimatedInputTokens} in / ~{complexity.estimatedOutputTokens} out tokens
             </div>
           </div>
 
           <div style={{ position: 'relative' }}>
             <textarea
+              className="studio-reactive-zone"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Enter your prompt or instruction here to evaluate..."
@@ -219,27 +293,47 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
             />
           </div>
 
-          {/* Complexity Telemetry Pill */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 12px',
-            marginTop: '8px',
-            backgroundColor: 'var(--bg-pill)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-sm)',
-            fontSize: '12px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Gauge size={14} color="var(--accent-purple)" />
-              <span style={{ color: 'var(--text-secondary)' }}>Estimated Complexity:</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                {complexity.complexityScore} / 10.0
-              </span>
+          {/* Complexity Telemetry Pill + Live Animated Progress Bar */}
+          <div
+            className="studio-reactive-zone"
+            style={{
+              padding: '8px 12px',
+              marginTop: '8px',
+              backgroundColor: 'var(--bg-pill)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '12px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Gauge size={14} color="var(--accent-purple)" />
+                <span style={{ color: 'var(--text-secondary)' }}>Estimated Complexity:</span>
+                <span className="tabular-nums" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {complexity.complexityScore} / 10.0
+                </span>
+              </div>
+              <div className="tabular-nums" style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                Safe Capability Floor: <strong style={{ color: 'var(--accent-purple)' }}>{complexity.suggestedCapabilityFloor}</strong>
+              </div>
             </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-              Safe Capability Floor: <strong style={{ color: 'var(--accent-purple)' }}>{complexity.suggestedCapabilityFloor}</strong>
+            <div
+              style={{
+                marginTop: '6px',
+                width: '100%',
+                height: '4px',
+                backgroundColor: 'var(--bg-primary)',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                ref={complexityBarRef}
+                style={{
+                  height: '100%',
+                  width: `${Math.min(100, (complexity.complexityScore / 10) * 100)}%`,
+                  background: 'linear-gradient(90deg, var(--accent-purple), var(--accent-gold))',
+                }}
+              />
             </div>
           </div>
 
@@ -259,7 +353,11 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
                   <button
                     key={cat.key}
                     type="button"
-                    onClick={() => setCategory(cat.key)}
+                    data-magnetic="true"
+                    onClick={(e) => {
+                      setCategory(cat.key);
+                      triggerGlitchBurst(e.currentTarget);
+                    }}
                     style={{
                       padding: '8px 10px',
                       borderRadius: 'var(--radius-sm)',
@@ -294,22 +392,25 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
             </span>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '14px',
-            backgroundColor: 'var(--bg-input)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            padding: '16px'
-          }}>
+          <div
+            className="studio-reactive-zone"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '14px',
+              backgroundColor: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              padding: '16px'
+            }}
+          >
             {/* Max Latency */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Clock size={13} color="var(--accent-purple)" /> Max Latency
                 </span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {constraints.maxLatency} ms
                 </span>
               </div>
@@ -330,7 +431,7 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <DollarSign size={13} color="var(--accent-mint)" /> Max Cost Budget
                 </span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
                   ${constraints.maxCost.toFixed(4)}
                 </span>
               </div>
@@ -351,7 +452,7 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Gauge size={13} color="#F59E0B" /> Min Capability
                 </span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {constraints.minCapability.toFixed(1)} / 10
                 </span>
               </div>
@@ -372,7 +473,7 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Layers size={13} color="var(--accent-purple)" /> Required Context
                 </span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {(constraints.requiredContext / 1000).toFixed(0)}K
                 </span>
               </div>
@@ -415,7 +516,11 @@ export const RecommendationStudio: React.FC<RecommendationStudioProps> = ({
                   <button
                     key={pref.key}
                     type="button"
-                    onClick={() => setPreference(pref.key)}
+                    data-magnetic="true"
+                    onClick={(e) => {
+                      setPreference(pref.key);
+                      triggerGlitchBurst(e.currentTarget);
+                    }}
                     style={{
                       padding: '10px 12px',
                       borderRadius: 'var(--radius-md)',

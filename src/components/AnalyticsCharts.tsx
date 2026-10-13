@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -18,6 +18,12 @@ import {
 import type { ArenaModel } from '../types/arena';
 import { HISTORICAL_SNAPSHOTS } from '../data/historicalSnapshots';
 import { BarChart3 } from 'lucide-react';
+import {
+  gsap,
+  ScrollTrigger,
+  prefersReducedMotion,
+  attachCyberCardPhysics,
+} from '../utils/gsapMotion';
 
 interface AnalyticsChartsProps {
   models: ArenaModel[];
@@ -29,6 +35,62 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [displayCount, setDisplayCount] = useState<number>(10);
+  const chartsRootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const rootEl = chartsRootRef.current;
+    if (!rootEl) return;
+
+    const cleanupCards = attachCyberCardPhysics(rootEl);
+
+    if (prefersReducedMotion()) {
+      return () => cleanupCards();
+    }
+
+    const ctx = gsap.context(() => {
+      const panels = Array.from(rootEl.querySelectorAll<HTMLElement>('.mr-card'));
+      gsap.fromTo(
+        panels.slice(0, 4),
+        { opacity: 0, y: 18, scale: 0.985 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.45,
+          stagger: 0.06,
+          ease: 'expo.out',
+          clearProps: 'transform',
+        }
+      );
+
+      if (panels.length > 4) {
+        ScrollTrigger.batch(panels.slice(4), {
+          start: 'top 90%',
+          once: true,
+          onEnter: (batch) => {
+            gsap.fromTo(
+              batch,
+              { opacity: 0, y: 24, scale: 0.98 },
+              {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                duration: 0.48,
+                stagger: 0.065,
+                ease: 'expo.out',
+                clearProps: 'transform',
+              }
+            );
+          },
+        });
+      }
+    }, rootEl);
+
+    return () => {
+      cleanupCards();
+      ctx.revert();
+    };
+  }, [selectedCategory, displayCount]);
 
   // Filter models for category
   const categoryModels = useMemo(() => {
@@ -190,9 +252,9 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
   const COLORS = ['#653CA1', '#AC91F1', '#35D6A5', '#F59E0B', '#06B6D4', '#E879F9'];
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div ref={chartsRootRef} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Header & Controls */}
-      <div className="mr-card" style={{ padding: '16px 20px' }}>
+      <div className="mr-card gsap-corner-reticle" style={{ padding: '16px 20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

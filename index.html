@@ -4,16 +4,22 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/jpeg" href="/veyralabs-logo.jpg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>veyralabs — AI Model Explorer, Router & Inference Gateway</title>
-    <meta name="description" content="veyralabs: Intelligent LLM inference gateway, verified model catalogue, mathematical routing, and two-model comparison platform." />
+    <title>VeyraLabs // Pixel Terminal AI Model Explorer, SLA Router & Inference Gateway</title>
+    <meta name="description" content="VeyraLabs: Deterministic LLM inference gateway, verified 650+ model catalogue, mathematical SLA routing, and live multi-provider execution across Google Gemini, Groq LPU, and OpenRouter." />
+    <meta property="og:title" content="VeyraLabs // Pixel Terminal AI Model Explorer, SLA Router & Inference Gateway" />
+    <meta property="og:description" content="Deterministic LLM inference gateway, verified model catalogue, mathematical SLA routing, and live multi-provider execution." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/veyralabs-logo.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preload" href="/fonts/fragment-mono.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
       (function() {
         try {
           var saved = localStorage.getItem('veyralabs_theme');
-          var theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+          var theme = (saved === 'light' || saved === 'dark') ? saved : 'dark';
           document.documentElement.setAttribute('data-theme', theme);
         } catch (e) {}
       })();

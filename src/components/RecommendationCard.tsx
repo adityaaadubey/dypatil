@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   CheckCircle2, 
   Terminal, 
@@ -17,6 +17,13 @@ import type { RecommendationResult, Model } from '../types';
 import type { TrialAllowance } from '../types/billing';
 import { MathExplainerModal } from './MathExplainerModal';
 import { LiveInferenceChat, type TopRankedModel } from './LiveInferenceChat';
+import {
+  gsap,
+  prefersReducedMotion,
+  scrambleDecodeText,
+  animateMetricCounter,
+  attachMagneticInteraction,
+} from '../utils/gsapMotion';
 
 interface RecommendationCardProps {
   result: RecommendationResult;
@@ -36,11 +43,136 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
   const [copied, setCopied] = useState(false);
   const [isMathExplainerOpen, setIsMathExplainerOpen] = useState(false);
 
-  if (!result.selectedModel || !result.selectedEvaluation) {
+  const cardRootRef = useRef<HTMLDivElement | null>(null);
+  const decisionIdRef = useRef<HTMLSpanElement | null>(null);
+  const modelNameRef = useRef<HTMLHeadingElement | null>(null);
+  const bestFitBadgeRef = useRef<HTMLDivElement | null>(null);
+  const costValRef = useRef<HTMLDivElement | null>(null);
+  const latencyValRef = useRef<HTMLDivElement | null>(null);
+  const capValRef = useRef<HTMLDivElement | null>(null);
+
+  const selectedModel = result.selectedModel;
+  const selectedEvaluation = result.selectedEvaluation;
+
+  // Dramatic GSAP Routing Lock-In & Metric Counter Sequence on new decision
+  useEffect(() => {
+    if (!selectedModel || !selectedEvaluation || !cardRootRef.current) return;
+
+    const cleanupMagnetic = attachMagneticInteraction(cardRootRef.current);
+
+    // Scramble decode decision ID & winning model name
+    if (decisionIdRef.current) {
+      scrambleDecodeText(decisionIdRef.current, result.decisionId, {
+        duration: 0.55,
+      });
+    }
+    if (modelNameRef.current) {
+      scrambleDecodeText(modelNameRef.current, selectedModel.name, {
+        duration: 0.5,
+      });
+    }
+
+    // Sequential number counters for Cost, p95 Latency, and Capability Rating
+    if (costValRef.current) {
+      animateMetricCounter(costValRef.current, selectedEvaluation.estimatedCost, {
+        duration: 0.75,
+        formatter: (v) => `$${v.toFixed(5)}`,
+      });
+    }
+    if (latencyValRef.current) {
+      animateMetricCounter(latencyValRef.current, selectedEvaluation.effectiveLatencyP95, {
+        duration: 0.75,
+        delay: 0.06,
+        suffix: ' ms',
+      });
+    }
+    if (capValRef.current) {
+      animateMetricCounter(capValRef.current, selectedModel.capabilityRating, {
+        duration: 0.75,
+        delay: 0.12,
+        decimals: 1,
+        suffix: ' / 10',
+      });
+    }
+
+    if (prefersReducedMotion()) {
+      return () => cleanupMagnetic();
+    }
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
+
+      // Winner Frame Lock-in
+      tl.fromTo(
+        '.rec-winner-frame',
+        {
+          opacity: 0.35,
+          y: 14,
+          scale: 0.985,
+          boxShadow: '0 0 36px rgba(242, 201, 125, 0.35)',
+        },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          boxShadow: '6px 6px 0 var(--shadow-color)',
+          duration: 0.48,
+          clearProps: 'transform,boxShadow',
+        },
+        0
+      );
+
+      // Elastic BEST FIT Badge Pop
+      if (bestFitBadgeRef.current) {
+        tl.fromTo(
+          bestFitBadgeRef.current,
+          { scale: 0.65, opacity: 0 },
+          { scale: 1, opacity: 1, duration: 0.55, ease: 'elastic.out(1, 0.45)', clearProps: 'transform' },
+          0.08
+        );
+      }
+
+      // 3 Metric Blocks Staggered Entrance
+      tl.fromTo(
+        '.rec-metric-block',
+        { opacity: 0, y: 12, scale: 0.95 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.42,
+          stagger: 0.065,
+          ease: 'back.out(1.7)',
+          clearProps: 'transform',
+        },
+        0.1
+      );
+
+      // Failover Chain Nodes Sequential Pulse
+      tl.fromTo(
+        '.rec-failover-node',
+        { opacity: 0, x: -8 },
+        {
+          opacity: 1,
+          x: 0,
+          duration: 0.32,
+          stagger: 0.055,
+          ease: 'power2.out',
+          clearProps: 'transform',
+        },
+        0.22
+      );
+    }, cardRootRef);
+
+    return () => {
+      cleanupMagnetic();
+      ctx.revert();
+    };
+  }, [result.decisionId, selectedModel?.id]);
+
+  if (!selectedModel || !selectedEvaluation) {
     return null;
   }
-
-  const { selectedModel, selectedEvaluation } = result;
 
   const handleCopyId = () => {
     navigator.clipboard.writeText(selectedModel.id);
@@ -49,7 +181,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
   };
 
   return (
-    <div className="animate-fade-in" style={{ marginBottom: '32px' }}>
+    <div ref={cardRootRef} style={{ marginBottom: '32px' }}>
       {/* Top Success Banner */}
       <div style={{
         display: 'flex',
@@ -69,7 +201,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
           <div style={{
             width: '28px',
             height: '28px',
-            borderRadius: '50%',
+            borderRadius: '0px',
             border: '2px solid var(--accent-mint)',
             display: 'flex',
             alignItems: 'center',
@@ -80,14 +212,14 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Recommendation ready
+              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                RECOMMENDATION READY
               </span>
-              <span className="badge badge-mint" style={{ fontSize: '11px', padding: '1px 8px' }}>
-                All hard constraints passed
+              <span className="badge badge-mint" style={{ fontSize: '10.5px', padding: '1px 8px' }}>
+                ALL HARD CONSTRAINTS PASSED
               </span>
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+            <div className="tabular-nums" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
               Deterministic inference routing • Evaluated against {result.candidates.length} production endpoints
             </div>
           </div>
@@ -101,20 +233,20 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
               Failover Active ({result.failedPrimaryModelName} bypassed)
             </span>
           )}
-          <div style={{
+          <div className="tabular-nums" style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
             backgroundColor: 'var(--bg-pill)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-full)',
+            border: '2px solid var(--border-subtle)',
+            borderRadius: '0px',
             padding: '4px 12px',
             fontSize: '12px',
             fontFamily: 'var(--font-mono)'
           }}>
             <span style={{ color: 'var(--text-muted)' }}>ID:</span>
-            <span style={{ color: 'var(--accent-purple)', fontWeight: 600 }}>{result.decisionId}</span>
-            <span style={{ color: 'var(--border-subtle)' }}>•</span>
+            <span ref={decisionIdRef} style={{ color: 'var(--accent-gold)', fontWeight: 700 }}>{result.decisionId}</span>
+            <span style={{ color: 'var(--border-subtle)' }}>//</span>
             <span style={{ color: 'var(--text-secondary)' }}>{result.timestamp}</span>
           </div>
 
@@ -125,46 +257,29 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             className="btn-secondary"
             style={{
               padding: '5px 12px',
-              fontSize: '11px',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              borderColor: 'var(--border-accent)',
-              backgroundColor: 'var(--bg-pill)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer'
+              fontSize: '11px'
             }}
             title="Inspect mathematical routing formulas and constraint audit"
           >
-            <Calculator size={13} color="var(--accent-primary)" />
+            <Calculator size={13} color="var(--accent-gold)" />
             <span>How was this recommended?</span>
           </button>
         </div>
       </div>
 
-      {/* Main Highlighted Model Card: Dark Indigo Background & Thin Purple Border */}
-      <div style={{
-        backgroundColor: 'var(--bg-recommended)',
-        border: '1.5px solid var(--border-recommended)',
-        borderBottomLeftRadius: 'var(--radius-lg)',
-        borderBottomRightRadius: 'var(--radius-lg)',
-        padding: '24px 28px',
-        boxShadow: 'var(--shadow-purple-glow), var(--shadow-lg)',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* Subtle purple gradient flare in background */}
-        <div style={{
-          position: 'absolute',
-          top: '-40px',
-          right: '-40px',
-          width: '200px',
-          height: '200px',
-          background: 'radial-gradient(circle, var(--accent-purple-glow) 0%, transparent 70%)',
-          pointerEvents: 'none'
-        }} />
-
+      {/* Main Highlighted Model Card: Pixel Terminal Frame */}
+      <div
+        className="rec-winner-frame gsap-laser-sweep gsap-corner-reticle"
+        style={{
+          backgroundColor: 'var(--bg-recommended)',
+          border: '2px solid var(--border-accent-strong)',
+          borderRadius: '0px',
+          padding: '24px 28px',
+          boxShadow: 'var(--shadow-lg)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
         {/* Header inside card */}
         <div style={{
           display: 'flex',
@@ -179,16 +294,16 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             <div style={{
               width: '46px',
               height: '46px',
-              borderRadius: '12px',
+              borderRadius: '0px',
               backgroundColor: 'var(--bg-pill)',
-              border: '1px solid var(--border-accent)',
+              border: '2px solid var(--accent-gold)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 2px 8px var(--accent-purple-dim)',
+              boxShadow: '3px 3px 0 var(--shadow-color)',
               flexShrink: 0
             }}>
-              <Terminal size={22} color="var(--accent-purple)" strokeWidth={2.2} />
+              <Terminal size={22} color="var(--accent-gold)" strokeWidth={2.2} />
             </div>
 
             <div>
@@ -214,14 +329,18 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
               </div>
 
               {/* Display Name */}
-              <h3 style={{
-                fontSize: '22px',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.02em',
-                lineHeight: 1.2,
-                marginBottom: '6px'
-              }}>
+              <h3
+                ref={modelNameRef}
+                className="gsap-terminal-cursor"
+                style={{
+                  fontSize: '22px',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.2,
+                  marginBottom: '6px'
+                }}
+              >
                 {selectedModel.name}
               </h3>
 
@@ -264,7 +383,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
                   )}
                 </div>
 
-                <span style={{
+                <span className="tabular-nums" style={{
                   fontSize: '11px',
                   color: 'var(--text-muted)',
                   padding: '2px 8px',
@@ -279,16 +398,19 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
 
           {/* Right Indicator: Green BEST FIT Indicator */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'var(--accent-mint-dim)',
-              border: '1.5px solid var(--accent-mint)',
-              boxShadow: 'var(--shadow-mint-glow)'
-            }}>
+            <div
+              ref={bestFitBadgeRef}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-full)',
+                backgroundColor: 'var(--accent-mint-dim)',
+                border: '1.5px solid var(--accent-mint)',
+                boxShadow: 'var(--shadow-mint-glow)'
+              }}
+            >
               <Sparkles size={14} color="var(--accent-mint)" />
               <span style={{
                 fontSize: '12px',
@@ -319,7 +441,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
           borderRadius: 'var(--radius-md)'
         }}>
           {/* Metric 1: Estimated Request Cost */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="rec-metric-block" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
               width: '36px',
               height: '36px',
@@ -335,17 +457,21 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
                 Est. Request Cost
               </div>
-              <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+              <div
+                ref={costValRef}
+                className="tabular-nums"
+                style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}
+              >
                 ${selectedEvaluation.estimatedCost.toFixed(5)}
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--accent-mint)' }}>
+              <div className="tabular-nums" style={{ fontSize: '11px', color: 'var(--accent-mint)' }}>
                 ${selectedModel.inputCostPerMillion}/M in • ${selectedModel.outputCostPerMillion}/M out
               </div>
             </div>
           </div>
 
           {/* Metric 2: p95 Profile Latency */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="rec-metric-block" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
               width: '36px',
               height: '36px',
@@ -361,17 +487,21 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
                 p95 Turnaround Latency
               </div>
-              <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+              <div
+                ref={latencyValRef}
+                className="tabular-nums"
+                style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}
+              >
                 {selectedEvaluation.effectiveLatencyP95} ms
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              <div className="tabular-nums" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                 Budget limit: {result.constraints.maxLatency} ms ({result.constraints.maxLatency - selectedEvaluation.effectiveLatencyP95}ms headroom)
               </div>
             </div>
           </div>
 
           {/* Metric 3: Capability Rating */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="rec-metric-block" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
               width: '36px',
               height: '36px',
@@ -387,10 +517,14 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
                 Capability Rating
               </div>
-              <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div
+                ref={capValRef}
+                className="tabular-nums"
+                style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}
+              >
                 {selectedModel.capabilityRating.toFixed(1)} / 10
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              <div className="tabular-nums" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                 Exceeds min {result.constraints.minCapability.toFixed(1)} requirement
               </div>
             </div>
@@ -440,25 +574,25 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             gap: '8px',
             fontSize: '12px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <ShieldCheck size={14} color="var(--accent-mint)" />
               <span style={{ color: 'var(--text-secondary)' }}>
                 Active Zero-Violation Failover Chain:
               </span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+              <span className="rec-failover-node" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
                 {selectedModel.name}
               </span>
               <ArrowRight size={12} color="var(--text-muted)" />
               {result.failoverChain.slice(0, 2).map((m, idx) => (
                 <React.Fragment key={m.id}>
-                  <span style={{ color: 'var(--text-secondary)' }}>{m.name}</span>
+                  <span className="rec-failover-node" style={{ color: 'var(--text-secondary)' }}>{m.name}</span>
                   {idx < Math.min(result.failoverChain.length - 1, 1) && (
                     <ArrowRight size={12} color="var(--text-muted)" />
                   )}
                 </React.Fragment>
               ))}
               {result.failoverChain.length > 2 && (
-                <span style={{ color: 'var(--text-muted)' }}>+{result.failoverChain.length - 2} more</span>
+                <span className="rec-failover-node" style={{ color: 'var(--text-muted)' }}>+{result.failoverChain.length - 2} more</span>
               )}
             </div>
 
@@ -496,7 +630,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             {
               model: selectedModel,
               rank: 1,
-              rankLabel: 'Rank #1 — Gold Recommendation',
+              rankLabel: 'Rank #1 // Gold Recommendation',
               score: (selectedEvaluation.selectionScore || 0.98) * 100,
               creditsCost: 5,
               badgeClass: 'badge-amber',
@@ -506,7 +640,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             ...(silverCandidate ? [{
               model: silverCandidate.model,
               rank: 2 as const,
-              rankLabel: 'Rank #2 — Silver Recommendation',
+              rankLabel: 'Rank #2 // Silver Recommendation',
               score: (silverCandidate.selectionScore || 0.92) * 100,
               creditsCost: 3,
               badgeClass: 'badge-mint',
@@ -516,7 +650,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             ...(bronzeCandidate ? [{
               model: bronzeCandidate.model,
               rank: 3 as const,
-              rankLabel: 'Rank #3 — Bronze Recommendation',
+              rankLabel: 'Rank #3 // Bronze Recommendation',
               score: (bronzeCandidate.selectionScore || 0.88) * 100,
               creditsCost: 2,
               badgeClass: 'badge-purple',

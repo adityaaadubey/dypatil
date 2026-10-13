@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, 
   Layers, 
@@ -11,6 +11,13 @@ import {
 import type { EnrichedModelCatalogItem, ModelComparisonResult } from '../types/modelExplorer';
 import { compareMetadata, executeModelComparison } from '../services/comparisonService';
 import { PromptLibraryModal } from './PromptLibraryModal';
+import {
+  gsap,
+  prefersReducedMotion,
+  triggerGlitchBurst,
+  attachMagneticInteraction,
+  attachCyberCardPhysics,
+} from '../utils/gsapMotion';
 
 interface ModelComparisonStudioProps {
   allModels: EnrichedModelCatalogItem[];
@@ -34,6 +41,7 @@ export const ModelComparisonStudio: React.FC<ModelComparisonStudioProps> = ({
 
   // Mode toggle: 'metadata' (Mode A) vs 'prompt' (Mode B)
   const [activeMode, setActiveMode] = useState<'metadata' | 'prompt'>('metadata');
+  const compRootRef = useRef<HTMLDivElement | null>(null);
 
   // Mode B Settings
   const [promptText, setPromptText] = useState<string>(
@@ -68,6 +76,44 @@ export const ModelComparisonStudio: React.FC<ModelComparisonStudioProps> = ({
       setModelB((prev) => (prev.id !== initialModelB.id ? initialModelB : prev));
     }
   }, [initialModelB]);
+
+  // GSAP entrance & transition choreography on mode / model / result changes
+  useEffect(() => {
+    const rootEl = compRootRef.current;
+    if (!rootEl) return;
+
+    const cleanupMagnetic = attachMagneticInteraction(rootEl);
+    const cleanupCards = attachCyberCardPhysics(rootEl);
+
+    if (prefersReducedMotion()) {
+      return () => {
+        cleanupMagnetic();
+        cleanupCards();
+      };
+    }
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        '.mr-card',
+        { opacity: 0, y: 16, scale: 0.985 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.42,
+          stagger: 0.06,
+          ease: 'expo.out',
+          clearProps: 'transform',
+        }
+      );
+    }, rootEl);
+
+    return () => {
+      cleanupMagnetic();
+      cleanupCards();
+      ctx.revert();
+    };
+  }, [activeMode, modelA.id, modelB.id, comparisonResult]);
 
   // Mode A: Metadata comparison matrix
   const metadataDiff = React.useMemo(() => {
@@ -120,7 +166,7 @@ export const ModelComparisonStudio: React.FC<ModelComparisonStudioProps> = ({
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div ref={compRootRef} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Top Banner */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -149,7 +195,11 @@ export const ModelComparisonStudio: React.FC<ModelComparisonStudioProps> = ({
           border: '1px solid var(--border-subtle)'
         }}>
           <button
-            onClick={() => setActiveMode('metadata')}
+            data-magnetic="true"
+            onClick={(e) => {
+              setActiveMode('metadata');
+              triggerGlitchBurst(e.currentTarget);
+            }}
             style={{
               padding: '8px 16px',
               borderRadius: 'var(--radius-sm)',

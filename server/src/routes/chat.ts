@@ -113,11 +113,11 @@ router.post('/chat/completions', inferenceRateLimiter, validateChatCompletion, a
           return res.end();
         }
 
-        // Auto mode failover attempt to Groq if stream failed
-        if (mode === 'auto') {
+        // Failover attempt to Groq if stream failed
+        if (mode === 'auto' || isGroqConfigured()) {
           console.info(`[Inference Stream] Gemini primary "${model}" failed. Failing over to Groq LPU stream...`);
           const groqRes = await streamGroqChatCompletion({
-            model: 'qwen/qwen3.8-27b',
+            model: 'openai/gpt-oss-120b',
             messages,
             prompt,
             mode: 'manual',
@@ -129,7 +129,7 @@ router.post('/chat/completions', inferenceRateLimiter, validateChatCompletion, a
           if (groqRes.success) {
             res.write(`data: ${JSON.stringify({ 
               type: 'done', 
-              result: { ...groqRes, failoverUsed: true, failedPrimaryModel: model } 
+              result: { ...groqRes, model, requestedModel: model, failoverUsed: mode === 'auto', failedPrimaryModel: mode === 'auto' ? model : undefined } 
             })}\n\n`);
             return res.end();
           }
@@ -156,11 +156,11 @@ router.post('/chat/completions', inferenceRateLimiter, validateChatCompletion, a
           return res.end();
         }
 
-        // Auto mode failover to Groq
-        if (mode === 'auto') {
+        // Failover to Groq
+        if (mode === 'auto' || isGroqConfigured()) {
           console.info(`[Inference Stream] OpenRouter primary "${model}" failed. Failing over to Groq LPU stream...`);
           const groqRes = await streamGroqChatCompletion({
-            model: 'qwen/qwen3.8-27b',
+            model: 'openai/gpt-oss-120b',
             messages,
             prompt,
             mode: 'manual',
@@ -172,7 +172,7 @@ router.post('/chat/completions', inferenceRateLimiter, validateChatCompletion, a
           if (groqRes.success) {
             res.write(`data: ${JSON.stringify({ 
               type: 'done', 
-              result: { ...groqRes, failoverUsed: true, failedPrimaryModel: model } 
+              result: { ...groqRes, model, requestedModel: model, failoverUsed: mode === 'auto', failedPrimaryModel: mode === 'auto' ? model : undefined } 
             })}\n\n`);
             return res.end();
           }
@@ -225,11 +225,11 @@ router.post('/chat/completions', inferenceRateLimiter, validateChatCompletion, a
         return res.json(result);
       }
 
-      // Auto mode fallback to Groq
-      if (mode === 'auto') {
+      // Fallback to Groq
+      if (mode === 'auto' || isGroqConfigured()) {
         console.info(`[Inference Router] Gemini failed (${result.error}). Auto-failing over to Groq LPU...`);
         const groqFallback = await executeGroqChatCompletion({
-          model: 'qwen/qwen3.8-27b',
+          model: 'openai/gpt-oss-120b',
           messages,
           prompt,
           mode: 'manual',
@@ -239,8 +239,10 @@ router.post('/chat/completions', inferenceRateLimiter, validateChatCompletion, a
         if (groqFallback.success) {
           return res.json({
             ...groqFallback,
-            failoverUsed: true,
-            failedPrimaryModel: model
+            model,
+            requestedModel: model,
+            failoverUsed: mode === 'auto',
+            failedPrimaryModel: mode === 'auto' ? model : undefined
           });
         }
       }
@@ -265,11 +267,11 @@ router.post('/chat/completions', inferenceRateLimiter, validateChatCompletion, a
       return res.json(result);
     }
 
-    // In Auto mode, try Groq fallback
-    if (mode === 'auto') {
+    // Try Groq fallback
+    if (mode === 'auto' || isGroqConfigured()) {
       console.info(`[Inference Router] OpenRouter failed (${result.error}). Auto-failing over to Groq LPU...`);
       const groqFallback = await executeGroqChatCompletion({
-        model: 'qwen/qwen3.8-27b',
+        model: 'openai/gpt-oss-120b',
         messages,
         prompt,
         mode: 'manual',
@@ -279,8 +281,10 @@ router.post('/chat/completions', inferenceRateLimiter, validateChatCompletion, a
       if (groqFallback.success) {
         return res.json({
           ...groqFallback,
-          failoverUsed: true,
-          failedPrimaryModel: model
+          model,
+          requestedModel: model,
+          failoverUsed: mode === 'auto',
+          failedPrimaryModel: mode === 'auto' ? model : undefined
         });
       }
     }

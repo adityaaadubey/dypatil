@@ -29,8 +29,8 @@ export async function checkServerHealth(): Promise<HealthResponse | null> {
 }
 
 /**
- * Fetches dynamic models from the server-side catalogue.
- * Falls back to INITIAL_MODELS if server is unreachable or errors.
+ * Fetches dynamic models from the server-side catalogue (including live Google Gemini and Groq models)
+ * and merges them into the unified candidate pool alongside OpenRouter/INITIAL_MODELS.
  */
 export async function fetchLiveCatalogue(refresh = false): Promise<Model[]> {
   try {
@@ -42,7 +42,37 @@ export async function fetchLiveCatalogue(refresh = false): Promise<Model[]> {
     }
     const data: CatalogueResponse = await res.json();
     if (Array.isArray(data.models) && data.models.length > 0) {
-      return data.models;
+      const mergedMap = new Map<string, Model>();
+      for (const m of INITIAL_MODELS) {
+        mergedMap.set(m.id, m);
+      }
+      for (const raw of data.models as any[]) {
+        if (!raw || !raw.id) continue;
+        const normalized: Model = {
+          id: raw.id,
+          name: raw.name || raw.display_name || raw.id,
+          provider: raw.provider === 'Google Gemini' ? 'Google' : (raw.provider || 'Google'),
+          category: raw.category || 'general',
+          description: raw.description || `${raw.name || raw.display_name || raw.id} (${raw.provider})`,
+          contextWindow: Number(raw.contextWindow ?? raw.context_window ?? 128000),
+          inputCostPerMillion: Number(raw.inputCostPerMillion ?? raw.input_cost_per_million ?? 0.075),
+          outputCostPerMillion: Number(raw.outputCostPerMillion ?? raw.output_cost_per_million ?? 0.30),
+          baseLatencyP95: Number(raw.baseLatencyP95 ?? raw.latency_p95 ?? 190),
+          currentLatencyP95: Number(raw.currentLatencyP95 ?? raw.baseLatencyP95 ?? raw.latency_p95 ?? 190),
+          capabilityRating: Number(raw.capabilityRating ?? raw.capability_rating ?? 8.8),
+          reliabilityScore: Number(raw.reliabilityScore ?? 99.96),
+          endpointStatus: raw.endpointStatus || 'online',
+          specialties: Array.isArray(raw.specialties)
+            ? raw.specialties
+            : Array.isArray(raw.capabilities)
+            ? raw.capabilities
+            : ['Direct API'],
+          isVerified: raw.isVerified !== undefined ? Boolean(raw.isVerified) : true
+        };
+        const existing = mergedMap.get(normalized.id);
+        mergedMap.set(normalized.id, existing ? { ...existing, ...normalized } : normalized);
+      }
+      return Array.from(mergedMap.values());
     }
     return INITIAL_MODELS;
   } catch (err) {

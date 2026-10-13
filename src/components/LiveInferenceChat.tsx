@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Send, 
   Play, 
@@ -19,6 +19,13 @@ import {
 import type { Model, ChatMessage, InferenceResult } from '../types';
 import type { TrialAllowance } from '../types/billing';
 import { executeStreamingInference } from '../services/inferenceService';
+import {
+  gsap,
+  prefersReducedMotion,
+  animateMetricCounter,
+  triggerGlitchBurst,
+  attachMagneticInteraction,
+} from '../utils/gsapMotion';
 
 export interface TopRankedModel {
   model: Model;
@@ -69,6 +76,61 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
   const [copiedResponse, setCopiedResponse] = useState<boolean>(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const latencySpanRef = useRef<HTMLSpanElement>(null);
+  const ttftSpanRef = useRef<HTMLSpanElement>(null);
+
+  // Staggered entrance for Top 3 recommendation cards + magnetic buttons
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container || prefersReducedMotion()) return;
+    const ctx = gsap.context(() => {
+      const topCards = container.querySelectorAll<HTMLElement>('[data-gsap-top3-card]');
+      if (topCards.length > 0) {
+        gsap.fromTo(
+          topCards,
+          { opacity: 0, y: 12, scale: 0.96 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.4,
+            stagger: 0.06,
+            ease: 'back.out(1.4)',
+            clearProps: 'transform,opacity',
+          }
+        );
+      }
+    }, container);
+    const cleanMag = attachMagneticInteraction(container);
+    return () => {
+      ctx.revert();
+      cleanMag();
+    };
+  }, [primaryModel.id, topRankedModels.length]);
+
+  // Animate telemetry strip counters when lastResult arrives
+  useEffect(() => {
+    if (!lastResult || lastResult.error || prefersReducedMotion()) return;
+    const tweens: gsap.core.Tween[] = [];
+    if (latencySpanRef.current && typeof lastResult.latencyMs === 'number') {
+      const t = animateMetricCounter(latencySpanRef.current, lastResult.latencyMs, {
+        duration: 0.55,
+        decimals: 0,
+        suffix: ' ms',
+      });
+      if (t) tweens.push(t);
+    }
+    if (ttftSpanRef.current && typeof lastResult.ttftMs === 'number') {
+      const t = animateMetricCounter(ttftSpanRef.current, lastResult.ttftMs, {
+        duration: 0.5,
+        decimals: 0,
+        suffix: ' ms',
+      });
+      if (t) tweens.push(t);
+    }
+    return () => tweens.forEach((tw) => tw.kill());
+  }, [lastResult]);
 
   const handleStopGenerating = () => {
     if (abortControllerRef.current) {
@@ -220,7 +282,10 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
   };
 
   return (
-    <div style={{
+    <div
+      ref={chatContainerRef}
+      className={isLoading ? 'gsap-laser-sweep gsap-laser-sweep--active' : 'gsap-laser-sweep'}
+      style={{
       marginTop: '20px',
       backgroundColor: 'var(--bg-panel)',
       border: '1.5px solid var(--border-accent)',
@@ -404,7 +469,10 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
               return (
                 <div
                   key={t.model.id}
-                  onClick={() => {
+                  data-gsap-top3-card
+                  className="gsap-corner-reticle"
+                  onClick={(e) => {
+                    triggerGlitchBurst(e.currentTarget);
                     setMode('manual');
                     setManualModelId(t.model.id);
                     setActualExecutedModelId(null);
@@ -716,7 +784,7 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <Zap size={13} color="var(--accent-amber)" />
                 <span style={{ color: 'var(--text-muted)' }}>TTFT:</span>
-                <span className="font-mono" style={{ color: 'var(--accent-amber)', fontWeight: 600 }}>
+                <span ref={ttftSpanRef} className="font-mono" style={{ color: 'var(--accent-amber)', fontWeight: 600 }}>
                   {lastResult.ttftMs} ms
                 </span>
               </div>
@@ -726,7 +794,7 @@ export const LiveInferenceChat: React.FC<LiveInferenceChatProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <Clock size={13} color="var(--accent-purple)" />
               <span style={{ color: 'var(--text-muted)' }}>Total Latency:</span>
-              <span className="font-mono" style={{ color: 'var(--accent-mint)', fontWeight: 600 }}>
+              <span ref={latencySpanRef} className="font-mono" style={{ color: 'var(--accent-mint)', fontWeight: 600 }}>
                 {lastResult.latencyMs} ms
               </span>
             </div>

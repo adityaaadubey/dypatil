@@ -20,7 +20,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@designcodeio/threeui": ["./src/shaders/animated-top-dock/AnimatedTopDock.tsx"],
+      "@designcodeio/threeui/style.css": ["./src/shaders/threeui.css"]
+    }
   },
   "include": ["src"]
 }

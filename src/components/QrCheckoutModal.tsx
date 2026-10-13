@@ -305,7 +305,7 @@ export const QrCheckoutModal: React.FC<QrCheckoutModalProps> = ({
           }}>
             <AlertCircle size={16} color="var(--accent-amber)" style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>
-              <strong style={{ color: 'var(--text-primary)' }}>Notice — Workflow Scope Boundary:</strong>
+              <strong style={{ color: 'var(--text-primary)' }}>Notice - Workflow Scope Boundary:</strong>
               <div style={{ marginTop: '2px', lineHeight: 1.5 }}>
                 Payment verification, payment gateway integration, and automatic token crediting are currently not active. This order remains in <strong style={{ color: 'var(--accent-amber)' }}>PENDING_PAYMENT</strong> status. Opening this checkout does not modify your token balance.
               </div>

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Header } from './components/Header';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Header, Scene } from './components/Header';
+export { Scene };
 import { OverviewDashboard } from './components/OverviewDashboard';
 import { LeaderboardExplorer } from './components/LeaderboardExplorer';
 import { AnalyticsCharts } from './components/AnalyticsCharts';
@@ -24,10 +25,20 @@ import { AuthModal } from './components/AuthModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { LiveExecutionModal } from './components/LiveExecutionModal';
 import { AdminDashboard } from './components/AdminDashboard';
+import { TerminalBootSequence } from './components/TerminalBootSequence';
+import {
+  gsap,
+  ScrollTrigger,
+  prefersReducedMotion,
+  splitAndAnimateHeading,
+  attachMagneticInteraction,
+  attachCyberCardPhysics,
+} from './utils/gsapMotion';
 
 import { INITIAL_MODELS, SAMPLE_PROMPTS } from './data/models';
 import { INITIAL_ARENA_MODELS, calculateDataFreshness } from './services/dataService';
 import { routeRequest } from './services/routerEngine';
+import { fetchLiveCatalogue } from './services/inferenceService';
 import { getEnrichedCatalog } from './services/modelCatalogService';
 import { 
   loadCart, 
@@ -58,13 +69,12 @@ import type { EnrichedModelCatalogItem } from './types/modelExplorer';
 import { Terminal, CheckCircle2, Sparkles, ArrowRight } from 'lucide-react';
 
 export const App: React.FC = () => {
-  // Theme state: dark (default) or light, persisted in local storage
+  const mainWorkspaceRef = useRef<HTMLElement | null>(null);
+  const transitionLaserRef = useRef<HTMLDivElement | null>(null);
+  // Theme state: dark Pixel Terminal (default) or light paper terminal, persisted in local storage
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('veyralabs_theme');
     if (saved === 'light' || saved === 'dark') return saved;
-    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-      return 'light';
-    }
     return 'dark';
   });
 
@@ -221,9 +231,15 @@ export const App: React.FC = () => {
     }, 180);
   }, [prompt, category, constraints, preference, models]);
 
-  // Initial recommendation run on component mount
+  // Initial recommendation run on component mount + sync live Gemini & Groq models into candidate pool
   useEffect(() => {
     handleRecommend(INITIAL_MODELS, defaultSample.constraints);
+    fetchLiveCatalogue().then((liveModels) => {
+      if (Array.isArray(liveModels) && liveModels.length > 0) {
+        setModels(liveModels);
+        handleRecommend(liveModels, defaultSample.constraints);
+      }
+    });
   }, []);
 
   // Update a model from Judge Simulator and re-evaluate
@@ -380,8 +396,132 @@ export const App: React.FC = () => {
     }
   };
 
+  // Coordinated GSAP View Transition, Kinetic Headings, ScrollTrigger Reveals & Interactive Physics
+  useEffect(() => {
+    const mainEl = mainWorkspaceRef.current;
+    if (!mainEl) return;
+
+    const cleanupMagnetic = attachMagneticInteraction(mainEl);
+    const cleanupCards = attachCyberCardPhysics(mainEl);
+
+    if (prefersReducedMotion()) {
+      return () => {
+        cleanupMagnetic();
+        cleanupCards();
+      };
+    }
+
+    const ctx = gsap.context(() => {
+      // 1. Horizontal laser scanline flash across top of active workspace
+      if (transitionLaserRef.current) {
+        gsap.fromTo(
+          transitionLaserRef.current,
+          { scaleX: 0, opacity: 1, transformOrigin: 'left center' },
+          {
+            scaleX: 1,
+            opacity: 0,
+            duration: 0.55,
+            ease: 'expo.out',
+          }
+        );
+      }
+
+      // 2. Primary view heading character-level kinetic reveal
+      const primaryHeading = mainEl.querySelector<HTMLElement>('h1, h2');
+      if (primaryHeading) {
+        splitAndAnimateHeading(primaryHeading, {
+          duration: 0.38,
+          stagger: 0.012,
+          y: 12,
+        });
+      }
+
+      // 3. Staggered badge / status pill entrance
+      const badges = mainEl.querySelectorAll<HTMLElement>('.badge');
+      if (badges.length > 0) {
+        gsap.fromTo(
+          Array.from(badges).slice(0, 12),
+          { opacity: 0, scale: 0.86, y: -6 },
+          {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            duration: 0.32,
+            stagger: 0.03,
+            ease: 'back.out(1.9)',
+            clearProps: 'transform',
+          }
+        );
+      }
+
+      // 4. Viewport panels (.mr-card) dimensional entrance with clip-path & blur-to-sharp
+      const allPanels = Array.from(mainEl.querySelectorAll<HTMLElement>('.mr-card'));
+      const aboveFoldPanels = allPanels.slice(0, 6);
+      const belowFoldPanels = allPanels.slice(6);
+
+      if (aboveFoldPanels.length > 0) {
+        gsap.fromTo(
+          aboveFoldPanels,
+          {
+            opacity: 0,
+            y: 22,
+            scale: 0.985,
+            filter: 'blur(5px)',
+            clipPath: 'inset(0 0 18% 0)',
+          },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            filter: 'blur(0px)',
+            clipPath: 'inset(0 0 0% 0)',
+            duration: 0.52,
+            stagger: 0.065,
+            ease: 'expo.out',
+            clearProps: 'filter,clipPath,transform',
+          }
+        );
+      }
+
+      // 5. ScrollTrigger batch choreography for lower panels & sections
+      if (belowFoldPanels.length > 0) {
+        ScrollTrigger.batch(belowFoldPanels, {
+          start: 'top 90%',
+          once: true,
+          onEnter: (batch) => {
+            gsap.fromTo(
+              batch,
+              { opacity: 0, y: 26, scale: 0.98, filter: 'blur(4px)' },
+              {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                filter: 'blur(0px)',
+                duration: 0.5,
+                stagger: 0.06,
+                ease: 'expo.out',
+                clearProps: 'filter,transform',
+              }
+            );
+          },
+        });
+      }
+
+      ScrollTrigger.refresh();
+    }, mainEl);
+
+    return () => {
+      cleanupMagnetic();
+      cleanupCards();
+      ctx.revert();
+    };
+  }, [activeTab]);
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+      {/* Cinematic First-Load Pixel Terminal Boot Sequence (Fast & Skippable) */}
+      <TerminalBootSequence totalModelsCount={freshness.totalRecords} />
+
       {/* Navigation Header */}
       <Header
         theme={theme}
@@ -425,7 +565,28 @@ export const App: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, padding: '32px 0 60px' }}>
+      <main
+        id="main-content"
+        ref={mainWorkspaceRef}
+        style={{ flex: 1, padding: '32px 0 68px', position: 'relative' }}
+      >
+        {/* Route Transition Laser Indicator */}
+        <div
+          ref={transitionLaserRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '2px',
+            background:
+              'linear-gradient(90deg, var(--accent-purple), var(--accent-gold), var(--accent-coral))',
+            boxShadow: '0 0 16px var(--accent-gold)',
+            pointerEvents: 'none',
+            opacity: 0,
+            zIndex: 20,
+          }}
+        />
         <div className="container">
           {/* TAB: Dedicated Model Explorer with 3D Flip Cards & Free/Paid Tabs */}
           {activeTab === 'explorer' && (
@@ -513,20 +674,21 @@ export const App: React.FC = () => {
               {!currentUser && (
                 <div
                   style={{
-                    backgroundColor: 'rgba(101, 60, 161, 0.15)',
-                    border: '1px solid rgba(172, 145, 241, 0.4)',
-                    borderRadius: '12px',
+                    backgroundColor: 'var(--accent-purple-dim)',
+                    border: '1px solid var(--border-accent)',
+                    borderRadius: 'var(--radius-lg)',
                     padding: '16px 20px',
-                    marginBottom: '20px',
+                    marginBottom: '22px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     flexWrap: 'wrap',
-                    gap: '12px'
+                    gap: '12px',
+                    boxShadow: 'var(--shadow-sm)'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Sparkles size={20} color="#AC91F1" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Sparkles size={20} color="var(--accent-purple)" />
                     <div>
                       <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>
                         Experience Live Model Inference & Mathematical Routing
@@ -538,25 +700,18 @@ export const App: React.FC = () => {
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => {
                       setAuthModalMode('signup');
                       setIsAuthModalOpen(true);
                     }}
+                    className="btn-primary"
                     style={{
                       padding: '8px 16px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      background: 'var(--accent-primary)',
-                      color: '#FFFFFF',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
+                      fontSize: '12px'
                     }}
                   >
-                    Claim 10,000 Free Credits
+                    <span>Claim 10,000 Free Credits</span>
                     <ArrowRight size={14} />
                   </button>
                 </div>
@@ -612,7 +767,7 @@ export const App: React.FC = () => {
                     />
                   )}
 
-                  {/* Decision Transparency — Models Considered */}
+                  {/* Decision Transparency // Models Considered */}
                   <DecisionTransparency
                     candidates={result.candidates}
                     constraints={result.constraints}
@@ -630,12 +785,13 @@ export const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Footer */}
+      {/* Pixel Terminal Status Footer */}
       <footer style={{
-        borderTop: '1px solid var(--border-subtle)',
-        backgroundColor: 'var(--bg-panel)',
-        padding: '24px 0',
-        fontSize: '12px',
+        borderTop: '2px solid var(--border-subtle)',
+        backgroundColor: 'var(--bg-secondary)',
+        padding: '18px 0 22px',
+        fontSize: '11.5px',
+        fontFamily: 'var(--font-mono)',
         color: 'var(--text-secondary)'
       }}>
         <div className="container" style={{
@@ -643,25 +799,35 @@ export const App: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '12px'
+          gap: '14px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Terminal size={14} color="var(--accent-purple)" />
-            <span>veyralabs AI Intelligence Platform • Normalized Model Catalogue & Inference Gateway ({arenaModels.length} Models)</span>
+            <Terminal size={14} color="var(--accent-gold)" />
+            <span className="tabular-nums" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              VEYRA//LABS PIXEL TERMINAL • ORDERED-DITHER SLA ROUTER & GATEWAY ({arenaModels.length} MODELS)
+            </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ cursor: 'pointer', color: 'var(--accent-purple)' }} onClick={() => setActiveTab('methodology')}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-ghost" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => setActiveTab('methodology')}>
               Rulebook Methodology
-            </span>
-            <span>•</span>
-            <span style={{ cursor: 'pointer', color: 'var(--accent-purple)' }} onClick={() => setActiveTab('recommendation')}>
+            </button>
+            <span style={{ color: 'var(--text-muted)' }}>//</span>
+            <button type="button" className="btn-ghost" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => setActiveTab('recommendation')}>
               Recommendation Gateway
-            </span>
-            <span>•</span>
-            <span style={{ cursor: 'pointer', color: 'var(--accent-purple)' }} onClick={() => setIsJudgePanelOpen(true)}>
+            </button>
+            <span style={{ color: 'var(--text-muted)' }}>//</span>
+            <button type="button" className="btn-ghost" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => setIsJudgePanelOpen(true)}>
               Judge Simulator
-            </span>
+            </button>
+            <span style={{ color: 'var(--text-muted)' }}>//</span>
+            <button type="button" className="btn-ghost" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => setActiveTab('methodology')} title="Data Governance & Privacy Policy">
+              Privacy Policy
+            </button>
+            <span style={{ color: 'var(--text-muted)' }}>//</span>
+            <button type="button" className="btn-ghost" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => setActiveTab('rulebook')} title="Platform SLA & Terms of Service">
+              Terms of Service
+            </button>
           </div>
         </div>
       </footer>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
   Download, 
@@ -10,6 +10,13 @@ import {
 } from 'lucide-react';
 import type { ArenaModel } from '../types/arena';
 import { exportToCSV } from '../services/dataService';
+import {
+  gsap,
+  prefersReducedMotion,
+  animateMetricCounter,
+  triggerGlitchBurst,
+  attachMagneticInteraction,
+} from '../utils/gsapMotion';
 
 interface LeaderboardExplorerProps {
   models: ArenaModel[];
@@ -41,6 +48,9 @@ export const LeaderboardExplorer: React.FC<LeaderboardExplorerProps> = ({
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(25);
+
+  const lbRootRef = useRef<HTMLDivElement | null>(null);
+  const lbCountRef = useRef<HTMLElement | null>(null);
 
   // Discovered categories
   const categories = useMemo(() => {
@@ -104,6 +114,41 @@ export const LeaderboardExplorer: React.FC<LeaderboardExplorerProps> = ({
     return filteredModels.slice(start, start + pageSize);
   }, [filteredModels, currentPage, pageSize]);
 
+  // GSAP table row stagger & counter animation when leaderboard state updates
+  useEffect(() => {
+    if (lbCountRef.current) {
+      animateMetricCounter(lbCountRef.current, filteredModels.length, { duration: 0.55 });
+    }
+
+    const rootEl = lbRootRef.current;
+    if (!rootEl) return;
+    const cleanupMagnetic = attachMagneticInteraction(rootEl);
+
+    if (prefersReducedMotion()) {
+      return () => cleanupMagnetic();
+    }
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        '.lb-table-row',
+        { opacity: 0, x: -12 },
+        {
+          opacity: 1,
+          x: 0,
+          duration: 0.28,
+          stagger: 0.015,
+          ease: 'power2.out',
+          clearProps: 'transform',
+        }
+      );
+    }, rootEl);
+
+    return () => {
+      cleanupMagnetic();
+      ctx.revert();
+    };
+  }, [selectedCategory, selectedProvider, licenseFilter, sortField, sortAsc, currentPage, pageSize, filteredModels.length]);
+
   const handleSort = (field: typeof sortField) => {
     if (sortField === field) {
       setSortAsc(!sortAsc);
@@ -124,7 +169,7 @@ export const LeaderboardExplorer: React.FC<LeaderboardExplorerProps> = ({
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div ref={lbRootRef} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Category Pills Header */}
       <div style={{
         display: 'flex',
@@ -139,16 +184,24 @@ export const LeaderboardExplorer: React.FC<LeaderboardExplorerProps> = ({
             <button
               key={cat}
               type="button"
-              onClick={() => { setSelectedCategory(cat); setCurrentPage(1); }}
+              data-magnetic="true"
+              onClick={(e) => {
+                setSelectedCategory(cat);
+                setCurrentPage(1);
+                triggerGlitchBurst(e.currentTarget);
+              }}
               style={{
                 padding: '6px 14px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '12px',
-                fontWeight: 600,
+                borderRadius: '0px',
+                fontSize: '11.5px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
                 whiteSpace: 'nowrap',
-                backgroundColor: isSelected ? 'var(--accent-purple)' : 'var(--bg-pill)',
-                color: isSelected ? '#FFFFFF' : 'var(--text-secondary)',
-                border: isSelected ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
+                backgroundColor: isSelected ? 'var(--dusk-3)' : 'var(--bg-pill)',
+                color: isSelected ? 'var(--accent-gold)' : 'var(--text-secondary)',
+                border: isSelected ? '2px solid var(--border-accent-strong)' : '2px solid var(--border-subtle)',
+                boxShadow: '3px 3px 0 var(--shadow-color)',
                 cursor: 'pointer'
               }}
             >
@@ -266,8 +319,8 @@ export const LeaderboardExplorer: React.FC<LeaderboardExplorerProps> = ({
           fontSize: '12px',
           color: 'var(--text-secondary)'
         }}>
-          <div>
-            Showing <strong style={{ color: 'var(--text-primary)' }}>{filteredModels.length}</strong> of {models.length} tracked models in category <em>"{selectedCategory}"</em>
+          <div className="tabular-nums">
+            Showing <strong ref={lbCountRef} style={{ color: 'var(--text-primary)' }}>{filteredModels.length}</strong> of {models.length} tracked models in category <em>"{selectedCategory}"</em>
           </div>
           <div>
             {selectedForComparison.length > 0 ? (
@@ -282,7 +335,7 @@ export const LeaderboardExplorer: React.FC<LeaderboardExplorerProps> = ({
       </div>
 
       {/* Main Table */}
-      <div className="mr-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="mr-card gsap-corner-reticle" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
             <thead>
@@ -348,6 +401,7 @@ export const LeaderboardExplorer: React.FC<LeaderboardExplorerProps> = ({
                 return (
                   <tr 
                     key={m.id}
+                    className="lb-table-row"
                     style={{
                       borderBottom: '1px solid var(--border-subtle)',
                       backgroundColor: isCompared ? 'var(--bg-card-selected)' : 'transparent',
@@ -405,7 +459,7 @@ export const LeaderboardExplorer: React.FC<LeaderboardExplorerProps> = ({
 
                     {/* Votes */}
                     <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-                      {m.votes > 0 ? m.votes.toLocaleString() : '—'}
+                      {m.votes > 0 ? m.votes.toLocaleString() : 'N/A'}
                     </td>
 
                     {/* Input Price */}
@@ -419,7 +473,7 @@ export const LeaderboardExplorer: React.FC<LeaderboardExplorerProps> = ({
 
                     {/* Context Length */}
                     <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>
-                      {m.contextLength ? `${(m.contextLength / 1000).toLocaleString()}K` : '—'}
+                      {m.contextLength ? `${(m.contextLength / 1000).toLocaleString()}K` : 'N/A'}
                     </td>
 
                     {/* License */}

@@ -183,7 +183,7 @@ export const AdminDashboard: React.FC = () => {
                     {u.role.toUpperCase()}
                   </span>
                 </td>
-                <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{u.phone || '—'}</td>
+                <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{u.phone || '-'}</td>
                 <td style={{ padding: '10px 12px' }}>
                   <span style={{
                     display: 'inline-flex',

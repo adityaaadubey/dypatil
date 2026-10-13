@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Cpu, 
   RotateCw, 
@@ -12,6 +12,7 @@ import {
   BrainCircuit
 } from 'lucide-react';
 import type { EnrichedModelCatalogItem } from '../types/modelExplorer';
+import { gsap, prefersReducedMotion } from '../utils/gsapMotion';
 
 interface FlippableModelCardProps {
   model: EnrichedModelCatalogItem;
@@ -31,6 +32,47 @@ export const FlippableModelCard: React.FC<FlippableModelCardProps> = ({
   onOpenDetailsModal
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  const codingBarRef = useRef<HTMLDivElement | null>(null);
+  const reasoningBarRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const inner = innerRef.current;
+    if (!inner) return;
+
+    if (prefersReducedMotion()) {
+      gsap.set(inner, { rotationY: isFlipped ? 180 : 0 });
+      return;
+    }
+
+    const ctx = gsap.context(() => {
+      gsap.to(inner, {
+        rotationY: isFlipped ? 180 : 0,
+        duration: 0.62,
+        ease: 'back.out(1.35)',
+        overwrite: 'auto',
+      });
+
+      if (isFlipped) {
+        if (codingBarRef.current) {
+          gsap.fromTo(
+            codingBarRef.current,
+            { scaleX: 0, transformOrigin: 'left center' },
+            { scaleX: 1, duration: 0.55, delay: 0.14, ease: 'expo.out' }
+          );
+        }
+        if (reasoningBarRef.current) {
+          gsap.fromTo(
+            reasoningBarRef.current,
+            { scaleX: 0, transformOrigin: 'left center' },
+            { scaleX: 1, duration: 0.55, delay: 0.2, ease: 'expo.out' }
+          );
+        }
+      }
+    }, inner);
+
+    return () => ctx.revert();
+  }, [isFlipped]);
 
   const handleCardClick = () => {
     setIsFlipped((prev) => !prev);
@@ -68,16 +110,15 @@ export const FlippableModelCard: React.FC<FlippableModelCardProps> = ({
         cursor: 'pointer',
         outline: 'none'
       }}
-      className="flippable-card-container"
+      className="flippable-card-container gsap-corner-reticle"
     >
       <div
+        ref={innerRef}
         style={{
           position: 'relative',
           width: '100%',
           height: '100%',
           transformStyle: 'preserve-3d',
-          transition: 'transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)',
-          transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
         }}
       >
         {/* ==================== CARD FRONT ==================== */}
@@ -90,13 +131,13 @@ export const FlippableModelCard: React.FC<FlippableModelCardProps> = ({
             backfaceVisibility: 'hidden',
             WebkitBackfaceVisibility: 'hidden',
             backgroundColor: 'var(--bg-panel)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '20px',
+            border: '2px solid var(--border-subtle)',
+            borderRadius: '0px',
+            padding: '20px 22px 22px',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+            boxShadow: 'var(--shadow-md)',
             boxSizing: 'border-box'
           }}
         >
@@ -107,17 +148,17 @@ export const FlippableModelCard: React.FC<FlippableModelCardProps> = ({
                 <div style={{
                   width: '32px',
                   height: '32px',
-                  borderRadius: '8px',
+                  borderRadius: '0px',
                   backgroundColor: 'var(--bg-card)',
-                  border: '1px solid var(--border-subtle)',
+                  border: '2px solid var(--border-subtle)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  <Cpu size={16} color="var(--accent-purple)" />
+                  <Cpu size={16} color="var(--accent-gold)" />
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {model.provider}
                   </div>
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
@@ -129,11 +170,11 @@ export const FlippableModelCard: React.FC<FlippableModelCardProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {getTierBadge()}
                 {(model.provider === 'Groq' || model.provider === 'OpenRouter' || model.provider === 'Google' || model.modelKey.startsWith('groq/') || model.modelKey.includes('gemini') || model.modelKey.includes('deepseek')) ? (
-                  <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(53, 214, 165, 0.15)', color: '#35D6A5', border: '1px solid rgba(53, 214, 165, 0.3)', fontWeight: 600, letterSpacing: '0.3px' }}>
+                  <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '0px', backgroundColor: 'var(--accent-mint-dim)', color: 'var(--accent-mint)', border: '1.5px solid var(--border-success)', fontWeight: 700, letterSpacing: '0.06em' }}>
                     ⚡ EXECUTABLE
                   </span>
                 ) : (
-                  <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(172, 145, 241, 0.08)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', fontWeight: 500, letterSpacing: '0.3px' }}>
+                  <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '0px', backgroundColor: 'var(--bg-pill)', color: 'var(--text-muted)', border: '1.5px solid var(--border-subtle)', fontWeight: 600, letterSpacing: '0.06em' }}>
                     METADATA ONLY
                   </span>
                 )}
@@ -144,20 +185,20 @@ export const FlippableModelCard: React.FC<FlippableModelCardProps> = ({
                     onToggleFavorite(model.id);
                   }}
                   className="btn-ghost"
-                  style={{ padding: '4px', borderRadius: '50%' }}
+                  style={{ padding: '4px', borderRadius: '0px' }}
                   title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                 >
-                  <Star size={14} color={isFavorite ? '#F59E0B' : 'var(--text-muted)'} fill={isFavorite ? '#F59E0B' : 'none'} />
+                  <Star size={14} color={isFavorite ? '#f9c74f' : 'var(--text-muted)'} fill={isFavorite ? '#f9c74f' : 'none'} />
                 </button>
               </div>
             </div>
 
             {/* Model Name & Key */}
             <div style={{ marginBottom: '10px' }}>
-              <h3 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
                 {model.name}
               </h3>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '2px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--accent-gold)', fontFamily: 'var(--font-mono)', marginTop: '3px' }}>
                 {model.modelKey}
               </div>
             </div>
@@ -184,10 +225,12 @@ export const FlippableModelCard: React.FC<FlippableModelCardProps> = ({
                   style={{
                     fontSize: '10px',
                     padding: '2px 7px',
-                    borderRadius: 'var(--radius-sm)',
+                    borderRadius: '0px',
                     backgroundColor: 'var(--bg-pill)',
                     color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-subtle)'
+                    border: '1px solid var(--border-subtle)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em'
                   }}
                 >
                   {tag}
@@ -203,28 +246,28 @@ export const FlippableModelCard: React.FC<FlippableModelCardProps> = ({
               gridTemplateColumns: '1fr 1fr',
               gap: '8px',
               padding: '10px 12px',
-              backgroundColor: 'var(--bg-card)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-input)',
+              borderRadius: '0px',
+              border: '2px solid var(--border-subtle)',
               marginBottom: '12px'
             }}>
               <div>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.06em' }}>
                   Context Window
                 </div>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                  {model.contextWindow ? `${(model.contextWindow / 1000).toLocaleString()}k tokens` : 'Unverified'}
+                <div className="tabular-nums" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {model.contextWindow ? `${(model.contextWindow / 1000).toLocaleString()}K TOKENS` : 'UNVERIFIED'}
                 </div>
               </div>
 
               <div>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.06em' }}>
                   Token Pricing
                 </div>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: model.pricing.isPriceVerified ? 'var(--accent-mint)' : 'var(--text-muted)', marginTop: '2px' }}>
+                <div className="tabular-nums" style={{ fontSize: '12px', fontWeight: 700, color: model.pricing.isPriceVerified ? 'var(--accent-mint)' : 'var(--text-muted)', marginTop: '2px' }}>
                   {model.pricing.isPriceVerified && model.pricing.inputPricePerMillionUSD !== null
                     ? `$${model.pricing.inputPricePerMillionUSD} / $${model.pricing.outputPricePerMillionUSD}`
-                    : model.isOpenWeight ? 'Self-Hosted' : 'Unquoted'}
+                    : model.isOpenWeight ? 'SELF-HOSTED' : 'UNQUOTED'}
                 </div>
               </div>
             </div>
@@ -236,14 +279,17 @@ export const FlippableModelCard: React.FC<FlippableModelCardProps> = ({
               justifyContent: 'center',
               gap: '6px',
               fontSize: '11px',
-              fontWeight: 600,
-              color: 'var(--accent-purple)',
-              padding: '6px 0',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--accent-purple-dim)'
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              color: 'var(--accent-gold)',
+              padding: '7px 0',
+              borderRadius: '0px',
+              border: '1.5px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-pill)'
             }}>
               <RotateCw size={12} />
-              <span>Click to Flip for Verified Evidence & Actions</span>
+              <span>[FLIP] VERIFIED EVIDENCE & ACTIONS</span>
             </div>
           </div>
         </div>
@@ -259,43 +305,67 @@ export const FlippableModelCard: React.FC<FlippableModelCardProps> = ({
             WebkitBackfaceVisibility: 'hidden',
             transform: 'rotateY(180deg)',
             backgroundColor: 'var(--bg-panel)',
-            border: '1px solid var(--accent-purple)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '20px',
+            border: '2px solid var(--border-accent-strong)',
+            borderRadius: '0px',
+            padding: '20px 22px 22px',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            boxShadow: '0 12px 32px rgba(145, 132, 255, 0.15)',
+            boxShadow: 'var(--shadow-lg)',
             boxSizing: 'border-box'
           }}
         >
           <div style={{ overflowY: 'auto', paddingRight: '4px' }}>
             {/* Header: Back indication */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <Sparkles size={14} />
                 <span>SPECIFICATIONS & BENCHMARKS</span>
               </div>
-              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+              <span className="tabular-nums" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                 Elo: {model.benchmarks.arenaElo || 'Unranked'}
               </span>
             </div>
 
-            {/* Capabilities ratings */}
-            <div style={{
+            {/* Capabilities ratings + GSAP animated telemetry bars */}
+            <div className="tabular-nums" style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
-              gap: '6px',
+              gap: '8px',
               marginBottom: '10px',
               fontSize: '11px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
-                <Code2 size={13} color="var(--accent-mint)" />
-                <span>Coding: <strong style={{ color: 'var(--text-primary)' }}>{model.capabilities.codingRating}/10</strong></span>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  <Code2 size={13} color="var(--accent-mint)" />
+                  <span>Coding: <strong style={{ color: 'var(--text-primary)' }}>{model.capabilities.codingRating}/10</strong></span>
+                </div>
+                <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--bg-primary)', overflow: 'hidden' }}>
+                  <div
+                    ref={codingBarRef}
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, ((model.capabilities.codingRating ?? 0) / 10) * 100)}%`,
+                      backgroundColor: 'var(--accent-mint)',
+                    }}
+                  />
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
-                <BrainCircuit size={13} color="var(--accent-purple)" />
-                <span>Reasoning: <strong style={{ color: 'var(--text-primary)' }}>{model.capabilities.reasoningRating}/10</strong></span>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  <BrainCircuit size={13} color="var(--accent-purple)" />
+                  <span>Reasoning: <strong style={{ color: 'var(--text-primary)' }}>{model.capabilities.reasoningRating}/10</strong></span>
+                </div>
+                <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--bg-primary)', overflow: 'hidden' }}>
+                  <div
+                    ref={reasoningBarRef}
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, ((model.capabilities.reasoningRating ?? 0) / 10) * 100)}%`,
+                      backgroundColor: 'var(--accent-purple)',
+                    }}
+                  />
+                </div>
               </div>
             </div>
 

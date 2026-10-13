@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   CheckCircle2, 
   XCircle, 
@@ -9,6 +9,12 @@ import {
   Info
 } from 'lucide-react';
 import type { CandidateEvaluation, Constraints, RoutingPreference } from '../types';
+import {
+  gsap,
+  Flip,
+  prefersReducedMotion,
+  attachMagneticInteraction,
+} from '../utils/gsapMotion';
 
 interface DecisionTransparencyProps {
   candidates: CandidateEvaluation[];
@@ -33,14 +39,82 @@ export const DecisionTransparency: React.FC<DecisionTransparencyProps> = ({
   });
 
   const [activeTab, setActiveTab] = useState<'all' | 'eligible' | 'rejected'>('all');
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const flipStateRef = useRef<Flip.FlipState | null>(null);
 
   const selectedCount = candidates.filter((c) => c.status === 'selected').length;
   const eligibleCount = candidates.filter((c) => c.status === 'eligible').length;
   const rejectedCount = candidates.filter((c) => c.status === 'rejected').length;
 
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const cleanup = attachMagneticInteraction(el);
+    return () => cleanup();
+  }, []);
+
+  // Capture Flip state before tab switch or row toggle
+  const captureFlip = () => {
+    if (!rootRef.current || prefersReducedMotion()) return;
+    const rows = rootRef.current.querySelectorAll('.dt-candidate-row');
+    if (rows.length > 0) {
+      flipStateRef.current = Flip.getState(rows);
+    }
+  };
+
   const toggleRow = (id: string) => {
+    captureFlip();
     setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
+
+  const handleSelectTab = (tab: 'all' | 'eligible' | 'rejected') => {
+    captureFlip();
+    setActiveTab(tab);
+  };
+
+  // Run Flip layout animation or staggered entrance when filtered rows update
+  useEffect(() => {
+    if (!rootRef.current || prefersReducedMotion()) return;
+
+    const ctx = gsap.context(() => {
+      if (flipStateRef.current) {
+        Flip.from(flipStateRef.current, {
+          duration: 0.36,
+          ease: 'power3.out',
+          stagger: 0.02,
+          simple: true,
+          onEnter: (elements) =>
+            gsap.fromTo(
+              elements,
+              { opacity: 0, y: 12, scale: 0.98 },
+              { opacity: 1, y: 0, scale: 1, duration: 0.3 }
+            ),
+        });
+        flipStateRef.current = null;
+      } else {
+        gsap.fromTo(
+          '.dt-candidate-row',
+          { opacity: 0, x: -12 },
+          {
+            opacity: 1,
+            x: 0,
+            duration: 0.34,
+            stagger: 0.03,
+            ease: 'power2.out',
+            clearProps: 'transform',
+          }
+        );
+      }
+
+      gsap.fromTo(
+        '.dt-expanded-drawer',
+        { opacity: 0, y: -6 },
+        { opacity: 1, y: 0, duration: 0.25, ease: 'power2.out', clearProps: 'transform' }
+      );
+    }, rootRef);
+
+    return () => ctx.revert();
+  }, [activeTab, expandedIds, candidates]);
 
   const filteredCandidates = candidates.filter((c) => {
     if (activeTab === 'eligible') return c.status === 'selected' || c.status === 'eligible';
@@ -49,7 +123,7 @@ export const DecisionTransparency: React.FC<DecisionTransparencyProps> = ({
   });
 
   return (
-    <div className="mr-card" style={{ marginBottom: '32px' }}>
+    <div ref={rootRef} className="mr-card" style={{ marginBottom: '32px' }}>
       {/* Section Header */}
       <div style={{
         display: 'flex',
@@ -69,7 +143,7 @@ export const DecisionTransparency: React.FC<DecisionTransparencyProps> = ({
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+          <div className="tabular-nums" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
               Models considered: {candidates.length} candidates ({preference.replace('_', ' ')} policy)
             </span>
@@ -99,7 +173,8 @@ export const DecisionTransparency: React.FC<DecisionTransparencyProps> = ({
         }}>
           <button
             type="button"
-            onClick={() => setActiveTab('all')}
+            data-magnetic="true"
+            onClick={() => handleSelectTab('all')}
             style={{
               padding: '5px 12px',
               borderRadius: 'var(--radius-sm)',
@@ -115,7 +190,8 @@ export const DecisionTransparency: React.FC<DecisionTransparencyProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('eligible')}
+            data-magnetic="true"
+            onClick={() => handleSelectTab('eligible')}
             style={{
               padding: '5px 12px',
               borderRadius: 'var(--radius-sm)',
@@ -131,7 +207,8 @@ export const DecisionTransparency: React.FC<DecisionTransparencyProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('rejected')}
+            data-magnetic="true"
+            onClick={() => handleSelectTab('rejected')}
             style={{
               padding: '5px 12px',
               borderRadius: 'var(--radius-sm)',
@@ -160,6 +237,8 @@ export const DecisionTransparency: React.FC<DecisionTransparencyProps> = ({
           return (
             <div
               key={model.id}
+              data-flip-id={`cand-${model.id}`}
+              className="dt-candidate-row"
               style={{
                 borderRadius: 'var(--radius-md)',
                 border: isSelected 
@@ -170,7 +249,7 @@ export const DecisionTransparency: React.FC<DecisionTransparencyProps> = ({
                   : 'var(--bg-card)',
                 boxShadow: isSelected ? 'var(--shadow-mint-glow)' : 'var(--shadow-sm)',
                 overflow: 'hidden',
-                transition: 'all 0.2s ease'
+                transition: 'border-color 0.2s ease, background-color 0.2s ease'
               }}
             >
               {/* Row Summary Bar (Clickable) */}
@@ -285,12 +364,15 @@ export const DecisionTransparency: React.FC<DecisionTransparencyProps> = ({
 
               {/* Expanded Details Section */}
               {isExpanded && (
-                <div style={{
-                  padding: '16px 20px',
-                  borderTop: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-input)',
-                  fontSize: '12px'
-                }}>
+                <div
+                  className="dt-expanded-drawer"
+                  style={{
+                    padding: '16px 20px',
+                    borderTop: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-input)',
+                    fontSize: '12px'
+                  }}
+                >
                   {/* Metadata Specs Grid */}
                   <div style={{
                     display: 'grid',
